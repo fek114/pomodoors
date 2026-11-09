@@ -6,7 +6,7 @@
 
 Başlaması zor gelen işler için sakin ve yargılamayan bir ortak çalışma web uygulaması. Kullanıcı kısa bir niyet yazar, süresini seçer ve kamerasız bir odada başkalarıyla aynı anda çalışır. Odakta geçen dakikalar kişinin kendi bahçesini büyütür. Odak sırasında sohbet kapalıdır, molada açılır.
 
-> **Durum:** `prototip/` artık Supabase'e bağlı çalışan bir web uygulaması: takma adla giriş (arka planda anonim oturum), tek ortak oda, sunucuda uygulanan tur ve sohbet kuralları, kalıcı profil ve bahçe, saat ayarlı oda (her :00 ve :30'da tur), gerçek zamanlı katılımcılar, molada paylaşılan konumlar ve tepkiler, piksel karakterler, tohum çeşitleri, ortak ağaç, gerçek saate bağlı gün döngüsü, ilk giriş turu, ortam sesi, Türkçe ve İngilizce arayüz. Henüz bir yerde yayında değil; yerelde açılır.
+> **Durum:** `prototip/` artık Supabase'e bağlı çalışan bir web uygulaması: takma adla giriş (arka planda anonim oturum), tek ortak oda, sunucuda uygulanan tur ve sohbet kuralları, kalıcı profil ve bahçe, saat ayarlı oda (her :00 ve :30'da tur), gerçek zamanlı katılımcılar, molada paylaşılan konumlar ve tepkiler, piksel karakterler, tohum çeşitleri, ortak ağaç, gerçek saate bağlı gün döngüsü, ilk giriş turu, ortam sesi, Türkçe ve İngilizce arayüz. Yayında: https://fek114.github.io/pomodoors/ (pilot).
 >
 > "PomoDoors" bir çalışma adıdır, kesinleşmedi.
 
@@ -94,7 +94,7 @@ Oyun öğeleri kişiye eşlik etmek için var; baskı kurmak, cezalandırmak ya 
 - Oda duvar saatine bağlıdır: her saat başı ve buçukta 25 dk odak başlar, :25'te 5 dk mola. Bekleme aşaması ve elle tur başlatma yoktur; süre seçimi (15/45) kaldırıldı.
 - Odaya odak sırasında giren "Kalan süreye katıl" der. Molada sıradaki tur için niyet yazılır; "turuna beni de kat" seçiliyse (varsayılan) tur başlar başlamaz otomatik katılınır.
 - Aşama sunucu saatinden hesaplanır (`room_slot`, `room_phase`); sohbet, tohum ekme ve katılım kuralları buna göre uygulanır.
-- **Test modu (geçici):** `rooms.dev_mode` açıkken sayfanın altında bir test çubuğu görünür ve odak/mola süreleri herkes için kısaltılabilir (ör. 30 + 20 sn). Döngü yine duvar saatine hizalıdır. Pilot öncesi süreler 1500 + 300 sn'ye alınır ve `dev_mode` kapatılır.
+- **Test modu:** pilot için kapalı (`rooms.dev_mode = false`, süreler 1500 + 300 sn). Yeniden test gerekirse bir odada `dev_mode` açılır; sayfanın altında test çubuğu görünür ve süreler o oda için kısaltılabilir. Test bitince tekrar kapatılır.
 
 ### Tepkiler, ortak ağaç ve gün döngüsü
 
@@ -156,7 +156,6 @@ Oyun öğeleri kişiye eşlik etmek için var; baskı kurmak, cezalandırmak ya 
 
 ### Henüz yapmadıkları
 
-- Yayında değil; ön yüz yalnızca yerelde açılır.
 - Kalıcı hesap yok. Tarayıcı verisi silinirse ya da cihaz değişirse profil taşınmaz.
 - Görev listesi, mağaza ve oturum/görev geçmişi yok.
 - Otomatik test yok.
