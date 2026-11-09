@@ -77,10 +77,17 @@ Oyun öğeleri kişiye eşlik etmek için var; baskı kurmak, cezalandırmak ya 
 - Seri bozulursa kayıp mesajı, uyarı ya da kırmızı gösterge çıkmaz; sayaç sessizce yeniden başlar. En uzun seri kişinin geçmişinde kalır.
 - Seri hiçbir ödülün şartı değildir. "Serin bozulmak üzere" gibi hatırlatmalar gönderilmez.
 
-### Ortak bahçe
+### Ortak bahçe ve liderlik tablosu
 
-- Liderlik tablosunun yerini alır. Odadakilerin bu hafta birlikte topladığı odak dakikalarını tek bir toplam olarak gösterir: "Bu hafta odadakiler birlikte 340 dk odaklandı."
-- Kimse sıralanmaz, kişi bazında süre gösterilmez. Her pazartesi yeniden başlar.
+- Ortak bahçe, odadakilerin bu hafta birlikte topladığı odak dakikalarını gösterir: "Bu hafta odadakiler birlikte 340 dk odaklandı."
+- **Liderlik tablosu (ürün kararı):** "Bu hafta en çok odaklananlar" başlığıyla haftalık ilk 10 kişi, sıra numarası ve dakikasıyla herkese görünür. Kullanıcı ilk 10'da değilse yalnızca kendi süresini görür ("Sen: 45 dk"). "Geride kaldın" gibi ifadeler ve alt sıra vurgusu yoktur. Her pazartesi sıfırlanır; "Ortak bahçe" ayarıyla ekrandan gizlenebilir.
+- **Bu hafta birlikte çalıştıkların:** aynı turlarda çalıştığın kişiler ve tur sayısı (en fazla 5 kişi).
+
+### Odalar ve canlı sayaç
+
+- Herkese açık dört temalı oda (kapı): Ortak oda, Ders, Kod, Yazı. Her odanın kendi turu, sohbeti, ortak ağacı ve tur kayıtları vardır.
+- Giriş ekranında "Şu an N kişi çalışıyor" ve her kapının yanında o odadaki kişi sayısı (lobi kanalı, presence).
+- **Ev sahibi odası:** herkes kendi odasını açıp linkini paylaşabilir (`?oda=r-xxxxxxxx`); bu odalar herkese açık listede görünmez. Kişi başı en fazla 3 oda.
 
 ### Saat ayarlı oda
 
@@ -219,7 +226,7 @@ Kurulum, paket yükleme ya da derleme adımı yok. Supabase istemcisi (supabase-
 ### Sunucu tarafı
 
 - Tablolar: `profiles`, `rooms` (tek ortak oda), `participations`, `messages`. RLS açık; kullanıcı XP, Yaprak ve bahçeyi kendisi yazamaz.
-- Fonksiyonlar: `room_slot`, `room_phase`, `set_room_timing` (yalnızca test modunda), `join_turn`, `leave_turn`, `claim_reward`, `buy_seed`, `plant_seed`, `room_week_minutes`.
+- Fonksiyonlar: `room_slot`, `room_phase`, `set_room_timing` (yalnızca test modunda), `create_room`, `week_leaderboard`, `week_companions`, `join_turn`, `leave_turn`, `claim_reward`, `buy_seed`, `plant_seed`, `room_week_minutes`.
 - Yayın: `.github/workflows/pages.yml` ön yüzü (`prototip/`) `main` dalına her push'ta GitHub Pages'e çıkarır.
 - Bahçe sakinleri: Fatih ve Melis sahnede her zaman bulunan iki karakterdir; gerçek kullanıcı değiller, katılımcı listesinde görünmezler.
 - Ücretsiz Supabase projeleri bir hafta hiç kullanılmazsa duraklatılır; panelden tek tıkla yeniden açılır, veri silinmez.
@@ -230,7 +237,7 @@ Kurulum, paket yükleme ya da derleme adımı yok. Supabase istemcisi (supabase-
 2. **Metinleri iki dilde ve aynı tonda tut.** Arayüz metinleri `prototip/i18n.js` içinde Türkçe ve İngilizce, yargılamayan bir tonla yazıldı. Yeni metni iki dilde ekle; gerekçesiz yeniden yazma, değişiklik gerekiyorsa öner.
 3. **Kapsamı büyütmeden önce sor.** Yukarıdaki MVP listesinde olmayan bir özellik, ekran, bağımlılık ya da servis eklemeden önce onay al. [Açık kararlar](#açık-kararlar) bölümündeki konularda kendi başına karar verme.
 4. **ADHD için tıbbi etki iddiası yazma.** "Tedavi eder", "odaklanmayı garanti eder", "bilimsel olarak kanıtlanmış" gibi ifadeler kullanma. "Kolaylaştırmayı amaçlar" gibi ölçülü ifadeler kullan.
-5. **Oyun öğelerini [Oyunlaştırma](#oyunlaştırma) bölümündeki sınırlar içinde tut.** Kazanılanı geri alan, seri bozulunca kayıp gösteren, alt sıraları vurgulayan, oyun öğelerini zorunlu kılan ya da gerçek parayla satın alma isteyen bir şey ekleme.
+5. **Oyun öğelerini [Oyunlaştırma](#oyunlaştırma) bölümündeki sınırlar içinde tut.** Kazanılanı geri alan, seri bozulunca kayıp gösteren, alt sıraları vurgulayan, oyun öğelerini zorunlu kılan ya da gerçek parayla satın alma isteyen bir şey ekleme. Liderlik tablosu bir ürün kararıdır; dilini sakin tut, kıyaslayan ya da utandıran metin yazma.
 6. **Kuralları sunucuda tut, olmayanı var gibi anlatma.** Tur, ödül, sohbet ve tohum kuralları Supabase fonksiyonlarında ve RLS'te. Bir kuralı yalnızca istemciye taşıma. E-posta girişi ya da yayın gibi henüz olmayan altyapıyı varmış gibi anlatma. Bir şeyi doğrulamadıysan bunu açıkça söyle.
 7. **Her değişikliği küçük ve incelenebilir tut.** Bir seferde tek bir konu üzerinde çalış. Her parçayı uygulamadan önce neyi neden değiştireceğini kısaca yazıp onaya sun.
 

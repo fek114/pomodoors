@@ -205,6 +205,20 @@ const els = {
   tourSkip: $('tourSkip'),
   tourNext: $('tourNext'),
   devBar: $('devBar'),
+  roomButton: $('roomButton'),
+  liveCount: $('liveCount'),
+  joinDoors: $('joinDoors'),
+  doorList: $('doorList'),
+  inviteNote: $('inviteNote'),
+  roomsDialog: $('roomsDialog'),
+  roomsDoorList: $('roomsDoorList'),
+  roomsClose: $('roomsClose'),
+  shareRow: $('shareRow'),
+  copyLink: $('copyLink'),
+  hostForm: $('hostForm'),
+  hostName: $('hostName'),
+  leaderList: $('leaderList'),
+  companionList: $('companionList'),
   devButtons: document.querySelectorAll('[data-timing]'),
   profileDone: $('profileDone'),
   leaveDialog: $('leaveDialog'),
@@ -339,6 +353,7 @@ async function loadBreak() {
         reward: reward.minutes > 0 ? reward : null,
       };
       await refreshProfile();
+      refreshSocial();
     }
     rows.forEach(addMessage);
     render();
@@ -597,7 +612,159 @@ function renderBoard() {
   els.treeText.textContent = nextAt
     ? t('tree.caption', { stage, n: nextAt - game.roomWeekMinutes })
     : t('tree.full');
+  renderLeaders();
+  renderCompanions();
 }
+
+/* Sosyal: haftalık liderlik tablosu ve birlikte çalışılan kişiler */
+
+const social = { leaders: [], companions: [] };
+
+async function refreshSocial() {
+  try {
+    const [leaders, companions] = await Promise.all([net.leaderboard(), net.companions()]);
+    social.leaders = leaders || [];
+    social.companions = companions || [];
+    renderBoard();
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Liderlik tablosu sakin bir dille: başlık "en çok odaklananlar", alt sıra vurgusu ya da "geride kaldın" yok.
+function renderLeaders() {
+  if (!social.leaders.length) {
+    els.leaderList.replaceChildren(el('li', 'leader-empty', t('leader.empty')));
+    return;
+  }
+  const rows = social.leaders.map((row, index) => {
+    const item = el('li', `leader-row${row.id === me.id ? ' is-me' : ''}`);
+    item.append(el('span', 'leader-rank', String(index + 1)));
+    const face = el('span', '');
+    face.innerHTML = avatarMarkup(row.look);
+    item.append(face.firstElementChild, el('span', 'leader-name', row.nickname), el('span', 'leader-minutes', t('leader.minutes', { n: row.minutes })));
+    return item;
+  });
+  if (game.weekMinutes > 0 && !social.leaders.some((row) => row.id === me.id)) {
+    rows.push(el('li', 'leader-you', t('leader.you', { n: game.weekMinutes })));
+  }
+  els.leaderList.replaceChildren(...rows);
+}
+
+function renderCompanions() {
+  if (!social.companions.length) {
+    els.companionList.replaceChildren(el('li', 'leader-empty', t('companions.empty')));
+    return;
+  }
+  els.companionList.replaceChildren(...social.companions.map((row) => {
+    const item = el('li', 'companion-row');
+    const face = el('span', '');
+    face.innerHTML = avatarMarkup(row.look);
+    item.append(face.firstElementChild, el('span', 'leader-name', row.nickname), el('span', 'leader-minutes', t('companions.item', { n: row.turns })));
+    return item;
+  }));
+}
+
+/* Odalar: temalı kapılar, ev sahibi odaları, canlı sayaç */
+
+const PUBLIC_ROOMS = ['ortak', 'ders', 'kod', 'yazi'];
+const ROOM_KEY = 'pomodoors.room';
+let roomRow = null;
+let lobbyCounts = {};
+
+const isHosted = (id) => id.startsWith('r-');
+const roomTitle = () => (roomRow && roomRow.name) || t(`room.${net.room}`);
+const roomLink = (id) => `${location.origin}${location.pathname}?oda=${encodeURIComponent(id)}`;
+
+function goToRoom(id) {
+  if (id === net.room && state.online) {
+    els.roomsDialog.close();
+    return;
+  }
+  try {
+    localStorage.setItem(ROOM_KEY, id);
+  } catch {
+    // Tercih bu oturumla sınırlı kalır.
+  }
+  if (state.online) location.href = roomLink(id);
+  else {
+    net.room = id;
+    renderDoors();
+  }
+}
+
+function doorButton(id) {
+  const count = lobbyCounts[id] || 0;
+  const button = el('button', `door${id === net.room ? ' is-current' : ''}`);
+  button.type = 'button';
+  button.dataset.room = id;
+  button.setAttribute('aria-pressed', String(id === net.room));
+  button.innerHTML = '<span class="door-icon" aria-hidden="true"></span>';
+  const text = el('span', 'door-text');
+  text.append(el('span', 'door-name', t(`room.${id}`)), el('span', 'door-desc', t(`room.desc.${id}`)));
+  button.append(text, el('span', 'door-count', state.online && id === net.room ? t('doors.current') : t('doors.count', { n: count })));
+  return button;
+}
+
+function renderDoors() {
+  const total = Object.values(lobbyCounts).reduce((sum, n) => sum + n, 0);
+  els.liveCount.textContent = total ? t('live.total', { n: total }) : t('live.none');
+  const invited = isHosted(net.room);
+  els.joinDoors.hidden = invited;
+  els.inviteNote.hidden = !invited;
+  els.inviteNote.textContent = t('invite.note');
+  els.doorList.replaceChildren(...PUBLIC_ROOMS.map(doorButton));
+  els.roomsDoorList.replaceChildren(...PUBLIC_ROOMS.map(doorButton));
+  els.shareRow.hidden = !isHosted(net.room);
+  if (state.online) els.roomButton.textContent = t('room.change', { name: roomTitle() });
+}
+
+function chooseInitialRoom() {
+  const fromLink = new URLSearchParams(location.search).get('oda');
+  let saved = null;
+  try {
+    saved = localStorage.getItem(ROOM_KEY);
+  } catch {
+    saved = null;
+  }
+  const id = fromLink || saved || 'ortak';
+  net.room = /^[a-z0-9-]{2,20}$/.test(id) ? id : 'ortak';
+}
+
+[els.doorList, els.roomsDoorList].forEach((list) => {
+  list.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-room]');
+    if (button) goToRoom(button.dataset.room);
+  });
+});
+
+els.roomButton.addEventListener('click', () => {
+  renderDoors();
+  els.roomsDialog.showModal();
+});
+els.roomsClose.addEventListener('click', () => els.roomsDialog.close());
+
+els.copyLink.addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(roomLink(net.room));
+    showToast(t('host.copied'));
+  } catch {
+    showToast(roomLink(net.room));
+  }
+});
+
+els.hostForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const name = els.hostName.value.trim();
+  if (!name) return;
+  try {
+    const room = await net.createRoom(name);
+    goToRoom(room.id);
+  } catch (error) {
+    console.error(error);
+    showToast(t('host.limit'));
+  }
+});
 
 /* Tohum kesesi */
 
@@ -1120,6 +1287,7 @@ els.langToggle.addEventListener('click', () => {
   setLang(lang === 'tr' ? 'en' : 'tr');
   els.soundState.textContent = t(state.sound ? 'sound.on' : 'sound.off');
   renderLookEditor();
+  renderDoors();
   if (els.tourDialog.open) renderTour();
   lastClock = '';
   render();
@@ -1167,9 +1335,24 @@ async function enterRoom(profile) {
   els.roomView.hidden = false;
   document.body.classList.remove('is-joining');
   await net.syncClock();
-  const [room, week] = await Promise.all([net.loadRoom(), net.weekMinutes()]);
+  let room = await net.loadRoom();
+  if (!room) {
+    // Link geçersizse ya da oda kapatıldıysa ortak odaya girilir.
+    net.room = 'ortak';
+    room = await net.loadRoom();
+  }
+  roomRow = room;
+  try {
+    localStorage.setItem(ROOM_KEY, net.room);
+  } catch {
+    // Tercih bu oturumla sınırlı kalır.
+  }
   setTiming(room);
-  game.roomWeekMinutes = week;
+  game.roomWeekMinutes = await net.weekMinutes();
+  net.trackLobby();
+  refreshSocial();
+  setInterval(refreshSocial, 60000);
+  renderDoors();
   state.online = true;
   renderLookEditor();
   enterPhase(roomPhase(), { silent: true });
@@ -1220,6 +1403,12 @@ async function boot() {
   applyStaticText();
   els.soundState.textContent = t('sound.off');
   restoreAmbient();
+  chooseInitialRoom();
+  net.watchLobby((counts) => {
+    lobbyCounts = counts;
+    renderDoors();
+  });
+  renderDoors();
   render();
   try {
     const userId = await net.restoreSession();

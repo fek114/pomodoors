@@ -20,7 +20,7 @@
     <div class="topbar-inner">
       <div class="brand">
         <span class="wordmark">PomoDoors</span>
-        <span class="room-name" data-i18n="room.name">Ortak oda</span>
+        <button class="room-name" id="roomButton" type="button" aria-haspopup="dialog"></button>
       </div>
       <div class="topbar-actions">
         <ul class="stats" id="stats" data-i18n-aria="stats.aria"></ul>
@@ -45,6 +45,12 @@
       <p class="eyebrow" data-i18n="join.eyebrow"></p>
       <h1 class="join-title" id="joinTitle" data-i18n="join.title"></h1>
       <p class="join-lede" data-i18n="join.lede"></p>
+      <p class="live-count" id="liveCount" aria-live="polite"></p>
+      <fieldset class="doors" id="joinDoors">
+        <legend data-i18n="doors.legend"></legend>
+        <div class="door-list" id="doorList"></div>
+      </fieldset>
+      <p class="invite-note" id="inviteNote" hidden></p>
       <form class="join-form" id="joinForm">
         <label class="join-label" for="nicknameInput" data-i18n="join.label"></label>
         <input class="text-input" id="nicknameInput" type="text" maxlength="24" autocomplete="nickname" required data-i18n-placeholder="join.placeholder">
@@ -173,6 +179,10 @@
         </div>
         <p class="communal" id="communalText"></p>
         <p class="tree-text" id="treeText"></p>
+        <h3 class="board-sub" data-i18n="leader.title"></h3>
+        <ol class="leader-list" id="leaderList"></ol>
+        <h3 class="board-sub" data-i18n="companions.title"></h3>
+        <ul class="companion-list" id="companionList"></ul>
         <p class="fine" data-i18n="board.fine"></p>
       </section>
 
@@ -242,6 +252,26 @@
       <button class="btn btn-primary" id="profileDone" type="button" data-i18n="profile.done"></button>
     </div>
   </main>
+
+  <dialog class="sheet rooms-sheet" id="roomsDialog" aria-labelledby="roomsTitle">
+    <h2 id="roomsTitle" data-i18n="doors.title"></h2>
+    <div class="door-list" id="roomsDoorList"></div>
+    <div class="share-row" id="shareRow" hidden>
+      <p class="fine" data-i18n="host.shareNote"></p>
+      <button class="btn btn-quiet btn-small" id="copyLink" type="button" data-i18n="host.copy"></button>
+    </div>
+    <form class="host-form" id="hostForm">
+      <label for="hostName" data-i18n="host.label"></label>
+      <div class="host-row">
+        <input class="text-input" id="hostName" type="text" maxlength="40" autocomplete="off" required data-i18n-placeholder="host.placeholder">
+        <button class="btn btn-primary btn-small" type="submit" data-i18n="host.create"></button>
+      </div>
+      <p class="fine" data-i18n="host.fine"></p>
+    </form>
+    <div class="sheet-actions">
+      <button class="btn btn-quiet" id="roomsClose" type="button" data-i18n="doors.close"></button>
+    </div>
+  </dialog>
 
   <dialog class="sheet tour" id="tourDialog" aria-labelledby="tourTitle">
     <p class="label" id="tourStep"></p>

@@ -6,11 +6,14 @@
 const net = (() => {
   const PROJECT_URL = 'https://ajwnzpxpducoxtgpsrwa.supabase.co';
   const PUBLISHABLE_KEY = 'sb_publishable_muVQ25OLJYvPFMHLyOAXCw_EHuDLPWA';
-  const ROOM = 'ortak';
   const MOVE_INTERVAL_MS = 100;
 
   const db = supabase.createClient(PROJECT_URL, PUBLISHABLE_KEY);
-  const api = { offset: 0, userId: null, room: ROOM };
+  // room: girilen odanın kimliği (ortak, ders, kod, yazi ya da ev sahibi odası r-xxxxxxxx).
+  const api = { offset: 0, userId: null, room: 'ortak' };
+  let lobby = null;
+  let lobbySubscribed = false;
+  let lobbyWanted = false;
   let channel = null;
   let subscribed = false;
   let lastPresence = '';
@@ -49,35 +52,38 @@ const net = (() => {
   };
 
   api.loadParticipation = (turnStartedAt) => check(db.from('participations').select('*')
-    .eq('room_id', ROOM).eq('turn_started_at', turnStartedAt).eq('user_id', api.userId).maybeSingle());
+    .eq('room_id', api.room).eq('turn_started_at', turnStartedAt).eq('user_id', api.userId).maybeSingle());
 
-  api.loadRoom = () => check(db.from('rooms').select('*').eq('id', ROOM).single());
+  api.loadRoom = (id = api.room) => check(db.from('rooms').select('*').eq('id', id).maybeSingle());
+  api.createRoom = (name) => check(db.rpc('create_room', { p_name: name }));
+  api.leaderboard = () => check(db.rpc('week_leaderboard'));
+  api.companions = () => check(db.rpc('week_companions'));
   api.setRoomTiming = (focus, brk) =>
-    check(db.rpc('set_room_timing', { p_room: ROOM, p_focus: focus, p_break: brk }));
-  api.joinTurn = (intent) => check(db.rpc('join_turn', { p_room: ROOM, p_intent: intent || null }));
-  api.leaveTurn = () => check(db.rpc('leave_turn', { p_room: ROOM }));
-  api.claimReward = () => check(db.rpc('claim_reward', { p_room: ROOM }));
-  api.plantSeed = (index, kind) => check(db.rpc('plant_seed', { p_index: index, p_kind: kind }));
+    check(db.rpc('set_room_timing', { p_room: api.room, p_focus: focus, p_break: brk }));
+  api.joinTurn = (intent) => check(db.rpc('join_turn', { p_room: api.room, p_intent: intent || null }));
+  api.leaveTurn = () => check(db.rpc('leave_turn', { p_room: api.room }));
+  api.claimReward = () => check(db.rpc('claim_reward', { p_room: api.room }));
+  api.plantSeed = (index, kind) => check(db.rpc('plant_seed', { p_index: index, p_kind: kind, p_room: api.room }));
   api.buySeed = (kind) => check(db.rpc('buy_seed', { p_kind: kind }));
-  api.weekMinutes = () => check(db.rpc('room_week_minutes', { p_room: ROOM }));
+  api.weekMinutes = () => check(db.rpc('room_week_minutes', { p_room: api.room }));
 
   api.loadMessages = (sinceIso) => check(db.from('messages').select('*')
-    .eq('room_id', ROOM).gte('created_at', sinceIso).order('created_at').limit(100));
-  api.sendMessage = (body) => check(db.from('messages').insert({ room_id: ROOM, body }).select().single());
+    .eq('room_id', api.room).gte('created_at', sinceIso).order('created_at').limit(100));
+  api.sendMessage = (body) => check(db.from('messages').insert({ room_id: api.room, body }).select().single());
 
   // Oda kanalı: kimlerin odada olduğu (presence), molada karakter konumları (broadcast),
   // oda süreleri ve yeni mesajlar (veritabanı değişiklikleri). Tur, duvar saatine hizalı döngüden hesaplanır.
   api.connect = (handlers) => {
-    channel = db.channel(`room:${ROOM}`, {
+    channel = db.channel(`room:${api.room}`, {
       config: { presence: { key: api.userId }, broadcast: { self: false } },
     });
     channel
       .on('presence', { event: 'sync' }, () => handlers.presence(channel.presenceState()))
       .on('broadcast', { event: 'move' }, ({ payload }) => handlers.move(payload))
       .on('broadcast', { event: 'emote' }, ({ payload }) => handlers.emote(payload))
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${ROOM}` },
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${api.room}` },
         ({ new: row }) => handlers.room(row))
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${ROOM}` },
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${api.room}` },
         ({ new: row }) => handlers.message(row))
       .subscribe((status) => {
         subscribed = status === 'SUBSCRIBED';
@@ -104,6 +110,29 @@ const net = (() => {
 
   api.sendEmote = (kind) => {
     if (subscribed) channel.send({ type: 'broadcast', event: 'emote', payload: { id: api.userId, kind } });
+  };
+
+  // Lobi: herkes hangi odada olduğunu burada da paylaşır; giriş ekranı oturum açmadan sayıları okur.
+  api.watchLobby = (onCounts) => {
+    lobby = db.channel('lobby', { config: { presence: { key: `v-${Math.random().toString(36).slice(2)}` } } });
+    lobby
+      .on('presence', { event: 'sync' }, () => {
+        const counts = {};
+        Object.values(lobby.presenceState()).forEach((entries) => {
+          const entry = entries[0];
+          if (entry && entry.room) counts[entry.room] = (counts[entry.room] || 0) + 1;
+        });
+        onCounts(counts);
+      })
+      .subscribe((status) => {
+        lobbySubscribed = status === 'SUBSCRIBED';
+        if (lobbySubscribed && lobbyWanted) lobby.track({ room: api.room });
+      });
+  };
+
+  api.trackLobby = () => {
+    lobbyWanted = true;
+    if (lobby && lobbySubscribed) lobby.track({ room: api.room });
   };
 
   return api;

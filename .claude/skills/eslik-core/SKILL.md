@@ -16,11 +16,11 @@ PomoDoors, Eşlik'in oyunlaştırılmış bir varyantı: başlaması zor gelen i
 
 ## Kural 1: Oyun öğelerini baskısız sınırlar içinde tut
 
-PomoDoors'ta dört oyun öğesi var: büyüyen bahçe; XP, seviye ve Yaprak; seri; ortak bahçe (odadakilerin bu hafta birlikte topladığı süre). Molada tepkiler (el sallama, kalp, kahve), Yaprak ile alınan tohum çeşitleri ve odanın haftalık süresiyle büyüyen ortak ağaç da var. Oda saat ayarlıdır: her :00 ve :30'da 25 dk odak, 5 dk mola. Şu an geçici test modu açık (`rooms.dev_mode`); süreleri test çubuğundan kısaltabilirsin. Pilot öncesi kapatılacak; yayın öncesi kullanıcıya hatırlat. Bunlarla çalışmak serbest, ama her biri README'deki "Oyunlaştırma" bölümünün sınırlarıyla birlikte gelir. Önerilerinde, tasarımlarında ve kodunda şunlara yer verme:
+PomoDoors'ta dört oyun öğesi var: büyüyen bahçe; XP, seviye ve Yaprak; seri; ortak bahçe (odadakilerin bu hafta birlikte topladığı süre) ve haftalık liderlik tablosu. Sosyal tarafta temalı odalar (kapılar), linkle paylaşılan ev sahibi odaları, canlı sayaç ve "bu hafta birlikte çalıştıkların" var. Molada tepkiler (el sallama, kalp, kahve), Yaprak ile alınan tohum çeşitleri ve odanın haftalık süresiyle büyüyen ortak ağaç da var. Oda saat ayarlıdır: her :00 ve :30'da 25 dk odak, 5 dk mola. Şu an geçici test modu açık (`rooms.dev_mode`); süreleri test çubuğundan kısaltabilirsin. Pilot öncesi kapatılacak; yayın öncesi kullanıcıya hatırlat. Bunlarla çalışmak serbest, ama her biri README'deki "Oyunlaştırma" bölümünün sınırlarıyla birlikte gelir. Önerilerinde, tasarımlarında ve kodunda şunlara yer verme:
 
 - Kazanılanı geri almak: XP, seviye, para ya da eşya kaybı; bitkilerin kuruması, solması, ölmesi
 - Seri bozulunca kayıp mesajı, uyarı ya da kırmızı gösterge; "Serin bozulmak üzere" gibi hatırlatmalar; seriyi bir ödülün şartı yapmak
-- Kullanıcıları sıralamak ya da birbiriyle kıyaslamak; liderlik tablosu kaldırıldı, ortak bahçe yalnızca birlikte toplanan süreyi gösterir
+- Liderlik tablosunu baskı aracına çevirmek. Haftalık ilk 10 tablosu kullanıcının bilinçli ürün kararıdır ve kalır; ama "geride kaldın", "X kişiyi geç", alt sıra vurgusu, sıra düşüşü bildirimi ya da tabloya dayalı ödül ekleme. Başlık "Bu hafta en çok odaklananlar" gibi sakin kalır
 - Odakta tepki, konum paylaşımı ya da sohbet açmak; odak önce gelir
 - Molada, sohbette ya da odada beklerken XP vermek
 - Gerçek parayla satın alma, süresi dolan fırsatlar, "kaçırma" hissi yaratan sayaçlar
