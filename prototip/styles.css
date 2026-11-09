@@ -82,7 +82,7 @@ html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
   min-height: 100vh;
-  padding-bottom: 152px; /* önizleme kontrolü için boşluk */
+  padding-bottom: 64px;
   background: var(--bg);
   color: var(--ink);
   font: 400 16px/1.55 var(--sans);
@@ -626,6 +626,34 @@ body[data-phase="break"] .hud .eyebrow-dot { box-shadow: inset 0 0 0 2px #A6D17F
   text-overflow: ellipsis;
 }
 .scene-foot { display: grid; gap: 4px; padding: 10px 16px 12px; color: #EAD7B5; font-size: 13.5px; }
+.emotes { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
+.emote {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 2px solid #B9864F;
+  border-radius: var(--radius);
+  background: #7A5434;
+  color: #FFF8E8;
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.emote:hover:not(:disabled) { background: #8A6040; }
+.emote:disabled { opacity: .5; cursor: not-allowed; }
+.emote-icon, .scene-emote { display: inline-block; width: 16px; height: 16px; }
+.scene-emote { width: 24px; height: 24px; padding: 3px; border: 2px solid #6B4526; border-radius: 4px; background: #FFF8E8; box-sizing: content-box; }
+.lang-toggle {
+  flex: none;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink-2);
+  font-family: var(--pixel);
+  font-size: 14px;
+}
+.lang-toggle:hover { border-color: var(--line-strong); color: var(--ink); }
 .scene-foot p { margin: 0; }
 
 @media (min-width: 900px) {
@@ -689,8 +717,10 @@ body[data-phase="break"] .hud .eyebrow-dot { box-shadow: inset 0 0 0 2px #A6D17F
 
 @media (max-width: 560px) {
   .topbar-inner { flex-wrap: wrap; }
-  .topbar-actions { flex-wrap: wrap; flex-basis: 100%; }
-  .stats { flex-basis: 100%; order: 2; }
+  .brand { order: 1; }
+  .lang-toggle { order: 2; margin-left: auto; }
+  .topbar-actions { order: 3; flex-wrap: wrap; flex-basis: 100%; justify-content: space-between; margin-left: 0; }
+  .stats { flex-basis: 100%; order: 2; gap: 4px 12px; }
 }
 
 /* Aşama değişimi bildirimi */
@@ -736,46 +766,20 @@ body[data-phase="break"] .hud .eyebrow-dot { box-shadow: inset 0 0 0 2px #A6D17F
 .sheet p { margin: 0; color: var(--ink-2); }
 .sheet-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 24px; }
 
-/* Geçici önizleme kontrolü — ürün arayüzünün parçası değil */
+/* Takma adla giriş */
 
-.preview {
-  position: fixed;
-  bottom: 16px;
-  left: 50%;
-  z-index: 50;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
-  width: max-content;
-  max-width: calc(100vw - 32px);
-  padding: 10px 12px;
-  border: 1px dashed #5C5850;
-  border-radius: 12px;
-  background: #1C1B19;
-  color: #E9E5DC;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, .2);
-  font: 12px/1.3 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  transform: translateX(-50%);
-}
-.preview-tag { color: #A8A396; letter-spacing: .08em; text-transform: uppercase; }
-.preview-body,
-.preview-group { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
-.preview-group { color: #A8A396; }
-.preview button,
-.preview select {
-  padding: 6px 9px;
-  border: 1px solid #4A4740;
-  border-radius: 6px;
-  background: #1C1B19;
-  color: #E9E5DC;
-  font: inherit;
-}
-.preview button:hover,
-.preview select:hover { border-color: #8A8578; }
-.preview button[aria-pressed="true"] { border-color: #E9E5DC; background: #E9E5DC; color: #1C1B19; }
-.preview :focus-visible { outline: 2px solid #E9E5DC; outline-offset: 2px; }
-.preview.is-collapsed .preview-body { display: none; }
+.join { max-width: 560px; margin: 0 auto; padding: clamp(40px, 10vw, 96px) var(--gutter) 0; }
+.join-card { padding: clamp(24px, 5vw, 40px); }
+.join-title { margin: 12px 0 0; font-family: var(--pixel); font-size: clamp(30px, 6vw, 42px); font-weight: 500; line-height: 1.15; }
+.join-lede { margin: 12px 0 0; color: var(--ink-2); }
+.join-form { display: grid; gap: 10px; margin-top: 28px; }
+.join-label { font-weight: 600; }
+.join-error { margin: 14px 0 0; color: var(--ink); font-size: 14px; }
+body.is-joining .topbar-actions { visibility: hidden; }
+.topbar-actions { margin-left: auto; }
+
+button.me { padding: 0; border: 0; border-radius: 50%; background: none; }
+.communal { margin: 0; font-size: 16px; }
 
 /* Dar ekranlar */
 
@@ -784,7 +788,6 @@ body[data-phase="break"] .hud .eyebrow-dot { box-shadow: inset 0 0 0 2px #A6D17F
   .stage-actions .btn { width: 100%; }
   .segmented { max-width: none; }
   .phase-banner { top: 76px; border-radius: 14px; font-size: 16px; }
-  .preview { right: 12px; bottom: 12px; left: 12px; width: auto; transform: none; }
 }
 
 @media (max-width: 420px) {

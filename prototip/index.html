@@ -3,13 +3,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>PomoDoors · Oda prototipi</title>
+  <title>PomoDoors</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Pixelify+Sans:wght@400..700&display=swap">
   <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js" defer></script>
   <script src="avatars.js" defer></script>
+  <script src="i18n.js" defer></script>
   <script src="scene.js" defer></script>
+  <script src="net.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body data-phase="waiting">
@@ -17,32 +20,49 @@
     <div class="topbar-inner">
       <div class="brand">
         <span class="wordmark">PomoDoors</span>
-        <span class="room-name">Ortak oda</span>
+        <span class="room-name" data-i18n="room.name">Ortak oda</span>
       </div>
       <div class="topbar-actions">
-        <ul class="stats" id="stats" aria-label="Oyun durumun"></ul>
-        <button class="sound-toggle" id="soundToggle" type="button" aria-pressed="false" title="Aşama değiştiğinde kısa bir ses çalar">
+        <ul class="stats" id="stats" data-i18n-aria="stats.aria"></ul>
+        <button class="sound-toggle" id="soundToggle" type="button" aria-pressed="false" data-i18n-title="sound.title">
           <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
             <path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/>
             <path class="sound-on" d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/>
             <path class="sound-off" d="M16 9.5l5 5M21 9.5l-5 5"/>
           </svg>
-          <span>Ses <span id="soundState">kapalı</span></span>
+          <span><span data-i18n="sound.label">Ses</span> <span id="soundState"></span></span>
         </button>
-        <span class="me" id="meAvatar" role="img"></span>
+        <button class="me" id="meAvatar" type="button" aria-expanded="false" data-i18n-aria="me.aria"></button>
       </div>
+      <button class="lang-toggle" id="langToggle" type="button" data-i18n="lang.switch" data-i18n-aria="lang.switchAria">EN</button>
     </div>
   </header>
 
   <p class="phase-banner" id="phaseBanner" role="status" aria-live="polite"></p>
 
-  <main class="room" id="roomView">
+  <main class="join" id="joinView" aria-labelledby="joinTitle" hidden>
+    <div class="card join-card">
+      <p class="eyebrow" data-i18n="join.eyebrow"></p>
+      <h1 class="join-title" id="joinTitle" data-i18n="join.title"></h1>
+      <p class="join-lede" data-i18n="join.lede"></p>
+      <form class="join-form" id="joinForm">
+        <label class="join-label" for="nicknameInput" data-i18n="join.label"></label>
+        <input class="text-input" id="nicknameInput" type="text" maxlength="24" autocomplete="nickname" required data-i18n-placeholder="join.placeholder">
+        <button class="btn btn-primary" id="joinBtn" type="submit" data-i18n="join.button"></button>
+      </form>
+      <p class="fine" data-i18n="join.fine"></p>
+      <p class="fine" id="joinSchedule"></p>
+      <p class="join-error" id="joinError" role="alert" hidden></p>
+    </div>
+  </main>
+
+  <main class="room" id="roomView" hidden>
     <section class="scene-frame" aria-labelledby="phaseName">
       <div class="hud">
         <div class="hud-main">
           <p class="eyebrow">
             <span class="eyebrow-dot" aria-hidden="true"></span>
-            <span id="phaseName">Bekleme</span>
+            <span id="phaseName"></span>
             <span class="eyebrow-detail" id="phaseDetail"></span>
           </p>
           <div class="timer" id="timer" role="timer"></div>
@@ -51,47 +71,52 @@
       </div>
       <div class="progress" id="progress" aria-hidden="true"><span id="progressFill"></span></div>
       <div class="scene-wrap" id="sceneWrap">
-        <canvas class="scene" id="scene" width="320" height="192" tabindex="0" role="img" aria-label="Bahçe sahnesi"></canvas>
+        <canvas class="scene" id="scene" width="320" height="192" tabindex="0" role="img" data-i18n-aria="scene.aria"></canvas>
         <div class="scene-labels" id="sceneLabels" aria-hidden="true"></div>
       </div>
       <div class="scene-foot">
+        <div class="emotes" id="emotes" role="group" data-i18n-aria="emote.aria">
+          <button class="emote" type="button" data-emote="wave"><span class="emote-icon" aria-hidden="true"></span><span data-i18n="emote.wave"></span></button>
+          <button class="emote" type="button" data-emote="heart"><span class="emote-icon" aria-hidden="true"></span><span data-i18n="emote.heart"></span></button>
+          <button class="emote" type="button" data-emote="coffee"><span class="emote-icon" aria-hidden="true"></span><span data-i18n="emote.coffee"></span></button>
+        </div>
         <p class="scene-hint" id="sceneHint" role="status" aria-live="polite"></p>
         <p class="scene-caption" id="gardenCaption"></p>
       </div>
     </section>
 
-    <section class="stage" aria-label="Tur">
+    <section class="stage" data-i18n-aria="stage.aria">
 
       <div class="stage-block" data-block="waiting join">
         <form id="startForm">
           <div class="field">
-            <label for="intentInput">Bu turda neye odaklanacaksın?</label>
-            <input class="text-input" id="intentInput" type="text" maxlength="80" autocomplete="off" placeholder="ör. Raporun giriş bölümünü yazmak">
-            <p class="hint"><span>İsteğe bağlı · Yalnızca o an odada olanlar görür.</span><span id="intentCount">0/80</span></p>
+            <label for="intentInput" data-i18n="intent.label"></label>
+            <input class="text-input" id="intentInput" type="text" maxlength="80" autocomplete="off" data-i18n-placeholder="intent.placeholder">
+            <p class="hint"><span data-i18n="intent.hint"></span><span id="intentCount">0/80</span></p>
           </div>
           <fieldset class="durations" id="durations">
-            <legend>Odak süresi</legend>
+            <legend data-i18n="duration.legend"></legend>
             <div class="segmented">
-              <label><input type="radio" name="duration" value="15"><span>15 dk</span></label>
-              <label><input type="radio" name="duration" value="25" checked><span>25 dk</span></label>
-              <label><input type="radio" name="duration" value="45"><span>45 dk</span></label>
+              <label><input type="radio" name="duration" value="15"><span data-i18n="duration.15"></span></label>
+              <label><input type="radio" name="duration" value="25" checked><span data-i18n="duration.25"></span></label>
+              <label><input type="radio" name="duration" value="45"><span data-i18n="duration.45"></span></label>
             </div>
-            <p class="hint">Ardından her zaman 5 dakika mola.</p>
+            <p class="hint" data-i18n="duration.hint"></p>
           </fieldset>
           <div class="form-actions">
-            <button class="btn btn-primary" id="startBtn" type="submit">Turu başlat</button>
-            <p class="fine" id="startNote">Odadaki herkes turu başlatabilir. Başlayan tur herkes için birlikte ilerler.</p>
+            <button class="btn btn-primary" id="startBtn" type="submit"></button>
+            <p class="fine" id="startNote"></p>
           </div>
         </form>
       </div>
 
       <div class="stage-block" data-block="focus" hidden>
-        <p class="label">Niyetin</p>
+        <p class="label" data-i18n="focus.intentLabel"></p>
         <p class="intent-text" id="myIntent"></p>
-        <p class="late-note" id="lateNote" hidden>Sonradan katıldın; turun kalan süresine dahilsin.</p>
+        <p class="late-note" id="lateNote" data-i18n="focus.late" hidden></p>
         <div class="stage-actions">
-          <button class="btn btn-quiet" id="leaveBtn" type="button">Turdan ayrıl</button>
-          <p class="fine">Yalnızca senin katılımın biter; oda zamanlayıcısı devam eder.</p>
+          <button class="btn btn-quiet" id="leaveBtn" type="button" data-i18n="focus.leave"></button>
+          <p class="fine" data-i18n="focus.leaveNote"></p>
         </div>
       </div>
 
@@ -104,17 +129,17 @@
           <circle cx="24" cy="30" r="1" fill="currentColor" stroke="none"/>
           <path class="illus-accent" d="M43 28h11M50 24l4 4-4 4"/>
         </svg>
-        <p class="label">Turdan ayrıldın</p>
+        <p class="label" data-i18n="left.label"></p>
         <p class="intent-text" id="leftSummary"></p>
-        <p class="fine">Oda turu herkes için sürüyor. Mola başladığında sohbet açılır.</p>
+        <p class="fine" data-i18n="left.note"></p>
         <div class="stage-actions">
-          <button class="btn btn-quiet" id="rejoinBtn" type="button">Tura geri dön</button>
+          <button class="btn btn-quiet" id="rejoinBtn" type="button" data-i18n="left.rejoin"></button>
         </div>
       </div>
 
       <div class="stage-block" data-block="break" hidden>
         <article class="card" id="summaryCard">
-          <p class="label">Bu turun özeti</p>
+          <p class="label" data-i18n="summary.label"></p>
           <p class="summary-line" id="summaryLine"></p>
           <ul class="summary-reward" id="summaryReward"></ul>
           <p class="summary-intent" id="summaryIntent"></p>
@@ -132,28 +157,28 @@
       </div>
     </section>
 
-    <aside class="side" aria-label="Katılımcılar ve sohbet">
+    <aside class="side" data-i18n-aria="side.aria">
       <section aria-labelledby="peopleTitle">
         <div class="section-head">
-          <h2 id="peopleTitle">Odadakiler</h2>
+          <h2 id="peopleTitle" data-i18n="people.title"></h2>
           <span class="count" id="peopleCount"></span>
         </div>
         <ul class="people-list" id="peopleList"></ul>
       </section>
 
-      <section class="board" id="boardSection" aria-labelledby="boardTitle" hidden>
+      <section class="board card" id="boardSection" aria-labelledby="boardTitle">
         <div class="section-head">
-          <h2 id="boardTitle">Bu hafta</h2>
-          <span class="count">Pazartesi yeniden başlar</span>
+          <h2 id="boardTitle" data-i18n="board.title"></h2>
+          <span class="count" data-i18n="board.reset"></span>
         </div>
-        <ol class="board-list" id="boardList"></ol>
-        <p class="fine">Yalnızca tabloya katılmayı seçen pilot üyeleri görünür.</p>
+        <p class="communal" id="communalText"></p>
+        <p class="fine" data-i18n="board.fine"></p>
       </section>
 
       <section class="chat card" aria-labelledby="chatTitle">
         <div class="section-head">
-          <h2 id="chatTitle">Sohbet</h2>
-          <span class="chat-state" id="chatState">Kapalı</span>
+          <h2 id="chatTitle" data-i18n="chat.title"></h2>
+          <span class="chat-state" id="chatState"></span>
         </div>
         <div class="chat-locked" id="chatLocked">
           <!-- Durum illüstrasyonu: kilitli konuşma balonu -->
@@ -171,79 +196,54 @@
         </div>
         <ol class="messages" id="messages" hidden></ol>
         <form class="composer" id="composer">
-          <label class="visually-hidden" for="msgInput">Mesaj</label>
+          <label class="visually-hidden" for="msgInput" data-i18n="chat.msgLabel"></label>
           <input class="text-input" id="msgInput" type="text" maxlength="280" autocomplete="off" disabled>
-          <button class="btn btn-primary btn-small" id="sendBtn" type="submit" disabled>Gönder</button>
+          <button class="btn btn-primary btn-small" id="sendBtn" type="submit" data-i18n="chat.send" disabled></button>
         </form>
       </section>
     </aside>
   </main>
 
   <main class="profile" id="profileView" aria-labelledby="profileTitle" hidden>
-    <p class="eyebrow">Profil</p>
-    <h1 class="profile-title" id="profileTitle">Avatarını seç</h1>
-    <p class="profile-lede">Odadakiler seni bu avatarla görür. Dilediğin zaman değiştirebilirsin.</p>
+    <p class="eyebrow" data-i18n="profile.eyebrow"></p>
+    <h1 class="profile-title" id="profileTitle" data-i18n="profile.title"></h1>
+    <p class="profile-lede" data-i18n="profile.lede"></p>
     <div class="profile-layout">
       <fieldset class="avatar-picker">
-        <legend class="visually-hidden">Avatar seçenekleri</legend>
+        <legend class="visually-hidden" data-i18n="profile.options"></legend>
         <div class="avatar-grid" id="avatarGrid"></div>
       </fieldset>
       <aside class="card profile-preview" aria-labelledby="profilePreviewTitle">
-        <p class="label" id="profilePreviewTitle">Odada böyle görünürsün</p>
+        <p class="label" id="profilePreviewTitle" data-i18n="profile.preview"></p>
         <ul class="people-list" id="profilePreview"></ul>
         <p class="fine" id="avatarLabel"></p>
       </aside>
     </div>
     <section class="card game-settings" aria-labelledby="gameSettingsTitle">
-      <h2 class="settings-title" id="gameSettingsTitle">Oyun öğeleri</h2>
-      <p class="fine">Kapattığın öğe yalnızca ekranından kalkar; biriktirdiklerin silinmez.</p>
+      <h2 class="settings-title" id="gameSettingsTitle" data-i18n="settings.title"></h2>
+      <p class="fine" data-i18n="settings.fine"></p>
       <div class="toggle-list">
-        <label class="toggle"><input type="checkbox" data-game="garden" checked><span>Bahçe</span></label>
-        <label class="toggle"><input type="checkbox" data-game="xp" checked><span>Seviye, XP ve Yaprak</span></label>
-        <label class="toggle"><input type="checkbox" data-game="streak" checked><span>Seri</span></label>
-        <label class="toggle"><input type="checkbox" data-game="board"><span>Liderlik tablosu</span><small>Açarsan haftalık odak süren pilot grubundaki tabloda görünür.</small></label>
+        <label class="toggle"><input type="checkbox" data-game="garden" checked><span data-i18n="settings.garden"></span></label>
+        <label class="toggle"><input type="checkbox" data-game="xp" checked><span data-i18n="settings.xp"></span></label>
+        <label class="toggle"><input type="checkbox" data-game="streak" checked><span data-i18n="settings.streak"></span></label>
+        <label class="toggle"><input type="checkbox" data-game="board" checked><span data-i18n="settings.board"></span><small data-i18n="settings.boardNote"></small></label>
       </div>
     </section>
     <div class="form-actions">
-      <button class="btn btn-primary" id="profileDone" type="button">Odaya dön</button>
+      <button class="btn btn-primary" id="profileDone" type="button" data-i18n="profile.done"></button>
     </div>
   </main>
 
   <dialog class="sheet" id="leaveDialog" aria-labelledby="leaveTitle">
     <form method="dialog">
-      <h2 id="leaveTitle">Turdan ayrılmak istiyor musun?</h2>
-      <p>Şimdiye kadarki <strong id="leaveMinutes"></strong> odak süren kaydedilir. Oda zamanlayıcısı herkes için devam eder.</p>
+      <h2 id="leaveTitle" data-i18n="leave.title"></h2>
+      <p><span data-i18n="leave.bodyA"></span> <strong id="leaveMinutes"></strong> <span data-i18n="leave.bodyB"></span></p>
       <div class="sheet-actions">
-        <button class="btn btn-quiet" value="stay">Vazgeç</button>
-        <button class="btn btn-primary" value="leave">Turdan ayrıl</button>
+        <button class="btn btn-quiet" value="stay" data-i18n="leave.stay"></button>
+        <button class="btn btn-primary" value="leave" data-i18n="leave.leave"></button>
       </div>
     </form>
   </dialog>
 
-  <!-- Geçici önizleme kontrolü: ürün arayüzünün parçası değil. -->
-  <div class="preview" id="preview" role="region" aria-label="Prototip önizleme kontrolü">
-    <span class="preview-tag">Prototip önizleme</span>
-    <div class="preview-body" id="previewBody">
-      <div class="preview-group" role="group" aria-label="Oda durumu">
-        <button type="button" data-goto="waiting">Bekleme</button>
-        <button type="button" data-goto="focus">Odak</button>
-        <button type="button" data-goto="break">Mola</button>
-        <button type="button" data-next title="Aşamanın sonuna ileri sarar">Sonraki aşama →</button>
-      </div>
-      <div class="preview-group" role="group" aria-label="Odaya sonradan giriş">
-        <span>Odaya gir:</span>
-        <button type="button" data-arrive="focus">Odak sürerken</button>
-        <button type="button" data-arrive="break">Molada</button>
-      </div>
-      <div class="preview-group">
-        <button type="button" data-open="profile" aria-pressed="false">Profil ve oyun ayarları</button>
-      </div>
-      <div class="preview-group" role="group" aria-label="Oyun">
-        <span>Oyun:</span>
-        <button type="button" data-near-level>Seviyeye 2 XP kala</button>
-      </div>
-    </div>
-    <button type="button" id="previewToggle" aria-expanded="true" aria-controls="previewBody">Gizle</button>
-  </div>
 </body>
 </html>

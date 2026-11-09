@@ -1,28 +1,19 @@
-// PomoDoors · oda prototipi.
-// Veriler sahte ve yalnızca bu sayfada tutulur; üyelik, sunucu ve canlı eşzamanlama yok.
-// Avatar seti avatars.js içinde.
+// PomoDoors · oda.
+// Oda durumu, katılımlar, ödüller ve sohbet Supabase'te tutulur (net.js); kurallar sunucuda uygulanır.
+// Bu dosya arayüzü çizer ve sunucudan gelen durumu yerel aşama akışına çevirir.
+// Avatar seti avatars.js, bahçe sahnesi scene.js içinde.
 
 const BREAK_MINUTES = 5;
 const MAX_INTENT = 80;
-const PREVIEW_INTENT = 'Portfolyo vaka çalışmasının ilk taslağı';
-
-// `sample`, diğer katılımcıların tur başında yazmış gibi görünen niyetidir.
-// `leftTurn`, odak sırasında turdan ayrılmış bir katılımcıyı örnekler.
+// İlk kişi her zaman kullanıcının kendisi; diğerleri odaya bağlanınca presence ile gelir.
 const people = [
-  { id: 'me', name: 'Sen', avatar: 'gozluklu', intent: '', sample: '' },
-  { id: 'deniz', name: 'Deniz', avatar: 'kivircik', intent: 'Tez için literatür notlarını toparlamak', sample: 'Tez için literatür notlarını toparlamak' },
-  { id: 'ece', name: 'Ece', avatar: 'kakullu', intent: '', sample: 'Faturaları ve makbuzları düzenlemek' },
-  { id: 'arda', name: 'Arda', avatar: 'bereli', intent: '', sample: '', leftTurn: true },
-  { id: 'ipek', name: 'İpek', avatar: 'kulaklikli', intent: 'Sunum notlarını sadeleştirmek', sample: 'Sunum notlarını sadeleştirmek' },
+  { id: 'me', name: 'Sen', avatar: 'gozluklu', intent: '' },
 ];
 const me = people[0];
 const personById = (id) => people.find((person) => person.id === id);
 
-const messages = [
-  { author: 'ece', text: 'Faturaların yarısı bitti, fena değil.' },
-  { author: 'deniz', text: 'Su almaya gidiyorum, sonraki tura varım.' },
-  { author: 'ipek', text: 'Sonraki tur 45 dk olsun mu? Bende uzun bir iş var.' },
-];
+// Yalnızca içinde bulunulan molanın mesajları: { id, author, name, avatar, text }
+const messages = [];
 
 const state = {
   view: 'room',         // 'room' | 'profile'
@@ -37,6 +28,10 @@ const state = {
   turnIntent: '',
   summary: null,        // yalnızca önceki tura katılan kullanıcı için { kind, minutes, intent, reward }
   sound: false,
+  room: { startedIso: null, startedAt: 0, minutes: 25 },  // sunucudaki oda satırı
+  turnStart: 0,         // yerelde işlenen turun başlangıcı (sunucu saati, ms)
+  myPart: null,         // bu turdaki katılım satırı
+  online: false,
 };
 
 /* Oyun öğeleri: sahte, yalnızca bu sayfada. Kazanılan hiçbir şey geri alınmaz. */
@@ -44,55 +39,38 @@ const state = {
 const XP_PER_LEVEL = 100;      // 1 dk odak = 1 XP = 1 Yaprak
 const MINUTES_PER_GROWTH = 5;  // her 5 dk odak bahçede bir büyüme adımı
 const MAX_STAGE = 4;           // 0 boş tarh · 1 tohum · 2 filiz · 3 genç bitki · 4 çiçek
-const STAGE_NAMES = ['boş tarh', 'tohum', 'filiz', 'genç bitki', 'çiçek'];
+
+const SHOW_KEY = 'pomodoors.show';
 
 const game = {
-  xp: 240,
-  leaves: 240,
-  streak: 3,
-  countedToday: false,  // bugünkü ilk odak seriye eklendi mi
-  weekMinutes: 95,
+  xp: 0,
+  leaves: 0,
+  streak: 0,
+  weekMinutes: 0,
+  roomWeekMinutes: 0,   // ortak bahçe: odadakilerin bu hafta birlikte topladığı dakikalar
   growthCarry: 0,       // bir sonraki büyüme adımına biriken dakikalar
-  garden: [4, 4, 3, 3, 2, 2, 1, 1, 0, 0, 0, 0],
-  show: { garden: true, xp: true, streak: true, board: false },
+  garden: [],
+  show: { garden: true, xp: true, streak: true, board: true, ...readShow() },
 };
 
-// Tabloya katılmayı seçmiş diğer pilot üyeleri (sahte).
-const BOARD_SAMPLE = [
-  { id: 'deniz', minutes: 140 },
-  { id: 'ipek', minutes: 110 },
-  { id: 'ece', minutes: 60 },
-];
+// Görünürlük tercihleri yalnızca bu tarayıcıda saklanır; okunamazsa varsayılanlar kullanılır.
+function readShow() {
+  try {
+    return JSON.parse(localStorage.getItem(SHOW_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
+
+function saveShow() {
+  try {
+    localStorage.setItem(SHOW_KEY, JSON.stringify(game.show));
+  } catch {
+    // Tarayıcı depolaması kapalıysa tercih bu oturumla sınırlı kalır.
+  }
+}
 
 const levelOf = (xp) => Math.floor(xp / XP_PER_LEVEL) + 1;
-
-function growGarden(steps) {
-  for (let i = 0; i < steps; i += 1) {
-    const index = game.garden.findIndex((stage) => stage < MAX_STAGE);
-    if (index === -1) game.garden.push(1);
-    else game.garden[index] += 1;
-  }
-}
-
-// Gerçekten katılınan odak dakikalarını ödüle çevirir. Seri sessizce artar; hiçbir değer eksilmez.
-function award(minutes) {
-  if (minutes <= 0) return null;
-  const levelBefore = levelOf(game.xp);
-  game.xp += minutes;
-  game.leaves += minutes;
-  game.weekMinutes += minutes;
-  const total = game.growthCarry + minutes;
-  const steps = Math.floor(total / MINUTES_PER_GROWTH);
-  game.growthCarry = total % MINUTES_PER_GROWTH;
-  growGarden(steps);
-  const level = levelOf(game.xp);
-  if (level > levelBefore) game.garden.push(0); // her yeni seviyede bir tarh açılır
-  if (!game.countedToday) {
-    game.streak += 1;
-    game.countedToday = true;
-  }
-  return { minutes, steps, level: level > levelBefore ? level : 0 };
-}
 
 /* 16×16 ve 8×8 piksel sprite'lar. Her harf bir renk sınıfı, nokta boş piksel. */
 
@@ -124,6 +102,9 @@ const PIXEL_ICONS = {
   leaf: ['....GGG.', '..GGggG.', '.GgggGG.', '.GggGG..', 'GgGGG...', 'GG......', 'G.......', '........'],
   calendar: ['D.D.D...', 'DDDDDDD.', 'DdddddD.', 'DdDdDdD.', 'DdddddD.', 'DdDdddD.', 'DDDDDDD.', '........'],
   sprout: ['........', '.gg..gg.', '.gGg.gG.', '..gGsG..', '....s...', '....s...', '..dddd..', '.dDddDd.'],
+  wave: ['.y.y.y..', '.y.y.y.y', '.yyyyy.y', '.yyyyyyy', 'yyyyyyy.', '.yyyyy..', '..yyy...', '........'],
+  heart: ['.ff.ff..', 'fffffff.', 'fffffff.', '.fffff..', '..fff...', '...f....', '........', '........'],
+  coffee: ['..y.y...', '.y.y....', 'DDDDDD..', 'DddddDD.', 'DddddD.D', 'DddddDD.', '.DDDD...', '........'],
 };
 
 function sprite(rows) {
@@ -142,18 +123,29 @@ function sprite(rows) {
 }
 const pixelIcon = (name) => sprite(PIXEL_ICONS[name]);
 
-const PHASE_NAMES = { waiting: 'Bekleme', focus: 'Odak', break: 'Mola' };
 const FOCUS_BLOCKS = { in: 'focus', none: 'join', left: 'left' };
 const FOCUS_STATUS = { in: 'focus', none: 'none', left: 'left' };
-const SUMMARY_LABELS = { complete: 'turun sonuna kadar kaldın', late: 'sonradan katıldı', left: 'turdan ayrıldı' };
-const PHASE_ANNOUNCEMENTS = {
-  focus: () => `Odak başladı · ${state.duration} dk`,
-  break: () => 'Odak bitti · Mola başladı, sohbet açık',
-  waiting: () => 'Mola bitti · Oda beklemede',
-};
+// Durum metni: kullanıcının kendisi için ayrılma ve katılmama ikinci tekil şahısla yazılır.
+const statusLabel = (status, mine = false) =>
+  (mine && (status === 'left' || status === 'none') ? t(`mystatus.${status}`) : t(`status.${status}`));
 
-const STATUS_LABELS = { waiting: 'Beklemede', focus: 'Odakta', break: 'Molada', left: 'Turdan ayrıldı', none: 'Henüz katılmadı' };
-const MY_STATUS_LABELS = { ...STATUS_LABELS, left: 'Turdan ayrıldın', none: 'Henüz katılmadın' };
+// Planlı ortak turlar: her gün bu UTC saatlerinde (İstanbul 10:00, 14:00, 21:00) 25 dk'lık tur kendiliğinden başlar.
+const SCHEDULED_UTC_HOURS = [7, 11, 18];
+
+function nextScheduledTurn(at = serverNow()) {
+  const day = new Date(at);
+  for (let offset = 0; offset < 2; offset += 1) {
+    for (const hour of SCHEDULED_UTC_HOURS) {
+      const candidate = Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate() + offset, hour);
+      if (candidate > at) return candidate; // duvar saati; gösterirken kaydırılmaz
+    }
+  }
+  return null;
+}
+
+const scheduleTimesText = () => SCHEDULED_UTC_HOURS
+  .map((hour) => clockAt(Date.UTC(2026, 0, 1, hour)))
+  .join(', ');
 
 const ICONS = {
   waiting: '<circle cx="8" cy="8" r="5.5"/><path d="M8 5.2V8l1.8 1.3"/>',
@@ -212,21 +204,24 @@ const els = {
   soundToggle: $('soundToggle'),
   soundState: $('soundState'),
   meAvatar: $('meAvatar'),
-  preview: $('preview'),
-  previewToggle: $('previewToggle'),
-  previewPhaseButtons: document.querySelectorAll('[data-goto]'),
-  profileButton: document.querySelector('[data-open="profile"]'),
+  joinView: $('joinView'),
+  joinForm: $('joinForm'),
+  nicknameInput: $('nicknameInput'),
+  joinBtn: $('joinBtn'),
+  joinError: $('joinError'),
+  communalText: $('communalText'),
+  joinSchedule: $('joinSchedule'),
+  langToggle: $('langToggle'),
+  emoteButtons: document.querySelectorAll('[data-emote]'),
   stats: $('stats'),
   summaryReward: $('summaryReward'),
   gardenCaption: $('gardenCaption'),
   boardSection: $('boardSection'),
-  boardList: $('boardList'),
   gameToggles: document.querySelectorAll('[data-game]'),
 };
 
-const timeFormat = new Intl.DateTimeFormat('tr-TR', { hour: '2-digit', minute: '2-digit' });
-const clockAt = (ms) => timeFormat.format(new Date(ms));
-const minutesText = (minutes) => (minutes < 1 ? "1 dk'dan kısa" : `${minutes} dk`);
+const clockAt = (ms) => new Intl.DateTimeFormat(lang === 'tr' ? 'tr-TR' : 'en-GB', { hour: '2-digit', minute: '2-digit' }).format(new Date(ms));
+const minutesText = (minutes) => (minutes < 1 ? t('time.short') : t('time.min', { n: minutes }));
 const remainingSeconds = () => Math.max(0, Math.ceil((state.endsAt - Date.now()) / 1000));
 const focusedMinutesSoFar = () =>
   Math.floor((state.focusedMs + (state.participation === 'in' ? Date.now() - state.joinedAt : 0)) / 60000);
@@ -242,86 +237,190 @@ function el(tag, className, text) {
   return node;
 }
 
-function fillSampleIntents() {
-  people.forEach((person) => {
-    if (person !== me && !person.intent) person.intent = person.sample;
-  });
-}
-
 function clearMyIntent() {
   me.intent = '';
   els.intentInput.value = '';
   els.intentCount.textContent = `0/${MAX_INTENT}`;
 }
 
-/* Aşama geçişleri */
+/* Aşama geçişleri: sunucudaki oda satırından hesaplanır */
 
-function startPhase(phase, { elapsed = 0, silent = false } = {}) {
-  const now = Date.now();
+const serverNow = () => Date.now() + net.offset;
+const toLocal = (serverMs) => serverMs - net.offset;
+
+function roomPhase(at = serverNow()) {
+  const { startedAt, minutes } = state.room;
+  if (!startedAt) return 'waiting';
+  if (at < startedAt + minutes * 60000) return 'focus';
+  if (at < startedAt + (minutes + BREAK_MINUTES) * 60000) return 'break';
+  return 'waiting';
+}
+
+function setRoom(row) {
+  state.room = {
+    startedIso: row.started_at,
+    startedAt: row.started_at ? Date.parse(row.started_at) : 0,
+    minutes: row.focus_minutes,
+  };
+}
+
+function applyParticipation(part) {
+  state.myPart = part || null;
+  if (!part) {
+    state.participation = 'none';
+    state.late = false;
+    state.focusedMs = 0;
+    return;
+  }
+  state.participation = part.left_at ? 'left' : 'in';
+  state.late = part.late;
+  state.joinedAt = toLocal(Date.parse(part.joined_at));
+  state.focusedMs = part.focused_seconds * 1000;
+  state.turnIntent = part.intent || '';
+}
+
+function syncPhase({ silent = false } = {}) {
+  const phase = roomPhase();
+  const newTurn = phase === 'focus' && state.room.startedAt !== state.turnStart;
+  if (phase !== state.phase || newTurn) enterPhase(phase, { silent });
+}
+
+function enterPhase(phase, { silent = false } = {}) {
+  const { startedAt, minutes } = state.room;
+  const previousTurn = state.turnStart;
   state.phase = phase;
 
   if (phase === 'focus') {
-    state.phaseTotal = state.duration * 60;
-    state.participation = 'in';
-    state.late = false;
-    state.joinedAt = now - elapsed * 1000;
-    state.focusedMs = 0;
-    state.turnIntent = me.intent;
+    state.turnStart = startedAt;
+    state.duration = minutes;
+    state.phaseTotal = minutes * 60;
+    state.endsAt = toLocal(startedAt + minutes * 60000);
     state.summary = null;
-    fillSampleIntents();
+    if (previousTurn !== startedAt) {
+      applyParticipation(state.myPart && state.myPart.turn_started_at === state.room.startedIso ? state.myPart : null);
+      loadParticipation();
+    }
   } else if (phase === 'break') {
+    state.turnStart = startedAt;
     state.phaseTotal = BREAK_MINUTES * 60;
+    state.endsAt = toLocal(startedAt + (minutes + BREAK_MINUTES) * 60000);
+    messages.length = 0;
+    loadBreak();
   } else {
     state.phaseTotal = 0;
+    state.summary = null;
+    messages.length = 0;
     // Niyetler yeni tura taşınmaz.
-    people.forEach((person) => { person.intent = ''; });
     clearMyIntent();
   }
 
-  state.endsAt = now + (state.phaseTotal - elapsed) * 1000;
   render();
   if (!silent) announcePhase(phase);
 }
 
-function finishFocus() {
-  if (state.participation === 'in') state.focusedMs += Date.now() - state.joinedAt;
-  // Özet yalnızca bu tura katılmış kullanıcıya gösterilir ve gerçekten katılınan süreyi yazar.
-  if (state.participation === 'none') {
-    state.summary = null;
-  } else {
-    const kind = state.participation === 'left' ? 'left' : state.late ? 'late' : 'complete';
-    const minutes = kind === 'complete' ? state.duration : Math.floor(state.focusedMs / 60000);
-    state.summary = { kind, minutes, intent: state.turnIntent, reward: award(minutes) };
+async function loadParticipation() {
+  const iso = state.room.startedIso;
+  try {
+    const part = await net.loadParticipation(iso);
+    if (state.room.startedIso === iso) {
+      applyParticipation(part);
+      render();
+    }
+  } catch (error) {
+    console.error(error);
   }
-  startPhase('break');
 }
 
-function advance() {
-  if (state.phase === 'focus') finishFocus();
-  else if (state.phase === 'break') startPhase('waiting');
-  else startPhase('focus');
+// Molada: önceki tura katılan kullanıcının ödülü sunucuda hesaplanır, sonra sohbet yüklenir.
+async function loadBreak() {
+  const { startedAt, minutes } = state.room;
+  const breakIso = new Date(startedAt + minutes * 60000).toISOString();
+  try {
+    const [reward, rows] = await Promise.all([net.claimReward(), net.loadMessages(breakIso)]);
+    if (reward) {
+      state.summary = {
+        kind: reward.kind,
+        minutes: reward.minutes,
+        intent: reward.intent || '',
+        reward: reward.minutes > 0 ? reward : null,
+      };
+      await refreshProfile();
+    }
+    rows.forEach(addMessage);
+    render();
+  } catch (error) {
+    console.error(error);
+  }
 }
 
-// Kalan süreye katılma ya da tura geri dönme: kayıt bu andan başlar, ortak zamanlayıcıya dokunulmaz.
-function joinTurn() {
-  state.participation = 'in';
-  state.late = true;
-  state.joinedAt = Date.now();
-  state.turnIntent = me.intent;
-  render();
+function addMessage(row) {
+  if (messages.some((message) => message.id === row.id)) return;
+  messages.push({ id: row.id, author: row.user_id, name: row.nickname, avatar: row.avatar, text: row.body });
 }
 
-function leaveTurn() {
-  state.focusedMs += Date.now() - state.joinedAt;
-  state.participation = 'left';
-  render();
+function applyProfile(profile) {
+  me.id = profile.id;
+  me.name = profile.nickname;
+  me.avatar = profile.avatar;
+  game.xp = profile.xp;
+  game.leaves = profile.leaves;
+  game.streak = profile.streak;
+  game.weekMinutes = profile.week_minutes;
+  game.growthCarry = profile.growth_carry;
+  game.garden = [...profile.garden];
+}
+
+async function refreshProfile() {
+  const [profile, week] = await Promise.all([net.loadProfile(), net.weekMinutes()]);
+  if (profile) applyProfile(profile);
+  game.roomWeekMinutes = week;
+}
+
+async function startOrJoin() {
+  try {
+    if (roomPhase() === 'waiting') {
+      const room = await net.startTurn(state.duration, me.intent);
+      setRoom(room);
+      // Aynı anda başka biri başlattıysa kullanıcı kalan süreye katılma seçeneğini görür.
+      if (room.started_by === me.id) {
+        applyParticipation({
+          turn_started_at: room.started_at, joined_at: room.started_at, left_at: null,
+          late: false, focused_seconds: 0, intent: me.intent,
+        });
+        state.myPart.turn_started_at = room.started_at;
+      }
+      syncPhase();
+    } else if (state.phase === 'focus' && state.participation !== 'in') {
+      applyParticipation(await net.joinTurn(me.intent));
+      render();
+    }
+  } catch (error) {
+    console.error(error);
+    showToast(t('toast.error'));
+  }
+}
+
+async function leaveTurn() {
+  try {
+    applyParticipation(await net.leaveTurn());
+    render();
+  } catch (error) {
+    console.error(error);
+  }
 }
 
 function tick() {
+  if (!state.online) return;
+  syncPhase();
   if (state.phase === 'waiting') return;
-  const remaining = remainingSeconds();
-  renderClock(remaining);
-  if (remaining === 0) advance();
+  renderClock(remainingSeconds());
+}
+
+function showToast(text) {
+  els.banner.textContent = text;
+  els.banner.classList.add('show');
+  clearTimeout(bannerTimer);
+  bannerTimer = setTimeout(() => els.banner.classList.remove('show'), 4000);
 }
 
 function showView(view) {
@@ -329,7 +428,7 @@ function showView(view) {
   state.view = view;
   els.roomView.hidden = view !== 'room';
   els.profileView.hidden = view !== 'profile';
-  els.profileButton.setAttribute('aria-pressed', String(view === 'profile'));
+  els.meAvatar.setAttribute('aria-expanded', String(view === 'profile'));
   window.scrollTo(0, 0);
   render();
 }
@@ -347,7 +446,7 @@ function renderClock(seconds) {
     els.timer.innerHTML = [...text]
       .map((ch) => (ch === ':' ? '<span class="colon">:</span>' : `<span class="digit">${ch}</span>`))
       .join('');
-    els.timer.setAttribute('aria-label', `${m} dakika ${s} saniye`);
+    els.timer.setAttribute('aria-label', t('timer.aria', { m, s }));
   }
   if (state.phaseTotal) {
     els.progressFill.style.width = `${(1 - seconds / state.phaseTotal) * 100}%`;
@@ -359,50 +458,49 @@ function render() {
   const block = phase === 'focus' ? FOCUS_BLOCKS[state.participation] : phase;
 
   document.body.dataset.phase = phase;
-  els.phaseName.textContent = PHASE_NAMES[phase];
+  els.phaseName.textContent = t(`phase.${phase}`);
   els.phaseDetail.textContent =
-    phase === 'focus' ? `· ${state.duration} dk tur` : phase === 'break' ? `· ${BREAK_MINUTES} dk` : '';
+    phase === 'focus' ? t('phase.detailFocus', { n: state.duration })
+      : phase === 'break' ? t('phase.detailBreak', { n: BREAK_MINUTES }) : '';
   els.blocks.forEach((node) => { node.hidden = !node.dataset.block.split(' ').includes(block); });
   els.progress.hidden = phase === 'waiting';
   els.timer.classList.toggle('is-idle', block !== 'focus' && block !== 'break');
 
   if (phase === 'waiting') {
     renderClock(state.duration * 60);
-    els.stageMeta.textContent = 'Yeni tur başlamayı bekliyor.';
+    els.stageMeta.textContent = t('meta.waiting', { time: clockAt(nextScheduledTurn()) });
   } else {
     renderClock(remainingSeconds());
     const end = clockAt(state.endsAt);
     if (phase === 'break') {
-      els.stageMeta.textContent = `Beklemeye geçiş ${end} · Yeni tur kendiliğinden başlamaz`;
+      els.stageMeta.textContent = t('meta.break', { time: end });
     } else {
       els.stageMeta.textContent = block === 'focus'
-        ? `Mola başlangıcı ${end}`
-        : `Oda turu devam ediyor · Mola başlangıcı ${end}`;
+        ? t('meta.focus', { time: end })
+        : t('meta.focusOut', { time: end });
     }
   }
 
   if (block === 'waiting' || block === 'join') {
     const joining = block === 'join';
     els.durations.hidden = joining;
-    els.startBtn.textContent = joining ? 'Kalan süreye katıl' : 'Turu başlat';
-    els.startNote.textContent = joining
-      ? 'Kaydın katıldığın andan başlar; ortak zamanlayıcı değişmez.'
-      : 'Odadaki herkes turu başlatabilir. Başlayan tur herkes için birlikte ilerler.';
+    els.startBtn.textContent = t(joining ? 'start.join' : 'start.button');
+    els.startNote.textContent = t(joining ? 'start.joinNote' : 'start.note');
   }
   if (block === 'focus') {
-    els.myIntent.textContent = state.turnIntent || 'Bu tur için niyet eklemedin.';
+    els.myIntent.textContent = state.turnIntent || t('focus.noIntent');
     els.myIntent.classList.toggle('is-empty', !state.turnIntent);
     els.lateNote.hidden = !state.late;
   }
   if (block === 'left') {
-    els.leftSummary.textContent = `Şimdiye kadar ${minutesText(focusedMinutesSoFar())} odak kaydedildi.`;
+    els.leftSummary.textContent = t('left.saved', { time: minutesText(focusedMinutesSoFar()) });
   }
   if (block === 'break') {
     els.summaryCard.hidden = !state.summary;
     if (state.summary) renderSummary();
     els.breakNote.textContent = state.summary
-      ? 'Ekrandan birkaç dakika uzaklaşmak iyi gelebilir.'
-      : 'Oda molada; sohbet herkese açık. Mola bitince yeni turu odadaki herkes başlatabilir.';
+      ? t('break.noteIn')
+      : t('break.noteOut');
   }
 
   renderPeople();
@@ -411,15 +509,38 @@ function render() {
   renderStats();
   renderGarden();
   renderBoard();
-  els.previewPhaseButtons.forEach((button) => {
-    button.setAttribute('aria-pressed', String(state.view === 'room' && button.dataset.goto === phase));
+  renderEmotes();
+  trackPresence();
+}
+
+// Tepkiler yalnızca bekleme ve molada; odakta kimse bölünmesin.
+function renderEmotes() {
+  const closed = state.phase === 'focus';
+  els.emoteButtons.forEach((button) => {
+    button.disabled = closed;
+    button.title = closed ? t('emote.closed') : '';
+  });
+}
+
+// Odadakilere görünen bilgiler: ad, avatar, durum, niyet ve bahçenin ilk dört tarhı.
+function trackPresence() {
+  if (!state.online) return;
+  const status = statusOf(me);
+  net.track({
+    id: me.id,
+    name: me.name,
+    avatar: me.avatar,
+    status,
+    intent: status === 'left' ? '' : (state.phase === 'focus' ? state.turnIntent : me.intent),
+    garden: game.show.garden ? game.garden.slice(0, 4) : [],
+    pos: state.phase === 'focus' ? null : scene.myPosition(),
   });
 }
 
 function renderSummary() {
   const { kind, minutes, intent } = state.summary;
-  els.summaryLine.textContent = `${minutesText(minutes)} odak · ${SUMMARY_LABELS[kind]}`;
-  els.summaryIntent.textContent = intent ? `“${intent}”` : 'Bu tur için niyet eklenmemişti.';
+  els.summaryLine.textContent = t('summary.line', { time: minutesText(minutes), kind: t(`summary.${kind}`) });
+  els.summaryIntent.textContent = intent ? `“${intent}”` : t('summary.noIntent');
   els.summaryIntent.classList.toggle('is-empty', !intent);
   renderReward(state.summary.reward);
 }
@@ -428,17 +549,17 @@ function renderSummary() {
 function renderReward(reward) {
   const lines = [];
   if (reward && game.show.xp) {
-    lines.push(['leaf', `+${reward.minutes} XP · +${reward.minutes} Yaprak`]);
+    lines.push(['leaf', t('reward.xp', { n: reward.minutes })]);
   }
   if (reward && game.show.garden) {
     lines.push(['sprout', reward.steps
-      ? `Bahçen ${reward.steps} adım büyüdü`
-      : 'Dakikaların bir sonraki büyümeye eklendi']);
+      ? t('reward.steps', { n: reward.steps })
+      : t('reward.carry')]);
   }
   if (reward && reward.level && game.show.xp) {
     lines.push(['star', game.show.garden
-      ? `Seviye ${reward.level} · bahçende yeni bir tarh açıldı`
-      : `Seviye ${reward.level}`]);
+      ? t('reward.levelGarden', { n: reward.level })
+      : t('reward.level', { n: reward.level })]);
   }
   els.summaryReward.innerHTML = lines
     .map(([name, text]) => `<li>${pixelIcon(name)}<span>${text}</span></li>`)
@@ -451,13 +572,13 @@ function renderStats() {
   if (game.show.xp) {
     const into = game.xp % XP_PER_LEVEL;
     const percent = Math.round((into / XP_PER_LEVEL) * 100);
-    items.push(`<li class="stat">${pixelIcon('star')}<span>Seviye ${levelOf(game.xp)}</span>`
+    items.push(`<li class="stat">${pixelIcon('star')}<span>${t('stats.level', { n: levelOf(game.xp) })}</span>`
       + `<span class="xp-bar" aria-hidden="true"><span style="width:${percent}%"></span></span>`
       + `<span class="visually-hidden">${into} / ${XP_PER_LEVEL} XP</span></li>`);
-    items.push(`<li class="stat">${pixelIcon('leaf')}<span>${game.leaves} Yaprak</span></li>`);
+    items.push(`<li class="stat">${pixelIcon('leaf')}<span>${t('stats.leaves', { n: game.leaves })}</span></li>`);
   }
   if (game.show.streak) {
-    items.push(`<li class="stat">${pixelIcon('calendar')}<span>Seri: ${game.streak} gün</span></li>`);
+    items.push(`<li class="stat">${pixelIcon('calendar')}<span>${t('stats.streak', { n: game.streak })}</span></li>`);
   }
   els.stats.innerHTML = items.join('');
   els.stats.hidden = !items.length;
@@ -468,33 +589,27 @@ function renderGarden() {
   els.gardenCaption.hidden = !game.show.garden;
   if (!game.show.garden) return;
   const planted = game.garden.filter((stage) => stage > 0).length;
-  els.gardenCaption.textContent = `Bahçen: ${planted} bitki · Odakta geçen her ${MINUTES_PER_GROWTH} dakika bir bitkiyi bir adım büyütür. Bitkiler solmaz.`;
+  els.gardenCaption.textContent = t('garden.caption', { n: planted, m: MINUTES_PER_GROWTH });
 }
 
-// Tablo yalnızca kullanıcı katılmayı seçtiğinde görünür; sıra numarası ve alt sıra vurgusu yok.
+// Ortak bahçe: odadakilerin bu hafta birlikte topladığı süre. Kişi bazında sıralama yok.
 function renderBoard() {
   els.boardSection.hidden = !game.show.board;
   if (!game.show.board) return;
-  const rows = [...BOARD_SAMPLE, { id: 'me', minutes: game.weekMinutes }]
-    .sort((a, b) => b.minutes - a.minutes);
-  els.boardList.replaceChildren(...rows.map(({ id, minutes }) => {
-    const person = personById(id);
-    const row = el('li', `board-row${id === 'me' ? ' is-me' : ''}`);
-    row.innerHTML = avatarMarkup(person.avatar);
-    row.append(el('span', 'board-name', person.name), el('span', 'board-minutes', `${minutes} dk`));
-    return row;
-  }));
+  els.communalText.textContent = game.roomWeekMinutes
+    ? t('board.text', { n: game.roomWeekMinutes })
+    : t('board.empty');
 }
 
 function statusOf(person) {
   if (state.phase !== 'focus') return state.phase;
   if (person === me) return FOCUS_STATUS[state.participation];
-  return person.leftTurn ? 'left' : 'focus';
+  return ['focus', 'left', 'none'].includes(person.status) ? person.status : 'none';
 }
 
 function emptyIntentText(person, status) {
-  if (person !== me) return 'Niyet paylaşılmadı';
-  return status === 'waiting' || status === 'none' ? 'Niyetin burada görünür' : 'Niyet eklenmedi';
+  if (person !== me) return t('intent.emptyOther');
+  return status === 'waiting' || status === 'none' ? t('intent.emptyMine') : t('intent.emptyAdded');
 }
 
 function personRow(person) {
@@ -504,7 +619,7 @@ function personRow(person) {
 
   const chip = el('span', 'status');
   chip.innerHTML = icon(status);
-  chip.append((person === me ? MY_STATUS_LABELS : STATUS_LABELS)[status]);
+  chip.append(statusLabel(status, person === me));
   const head = el('div', 'person-head');
   head.append(el('p', 'person-name', person.name), chip);
 
@@ -515,7 +630,7 @@ function personRow(person) {
     const intent = el('p', 'person-intent');
     if (person.intent) {
       intent.innerHTML = icon('intent');
-      intent.append(el('span', 'visually-hidden', 'Niyet: '), el('span', '', person.intent));
+      intent.append(el('span', 'visually-hidden', t('intent.sr')), el('span', '', person.intent));
     } else {
       intent.classList.add('is-empty');
       intent.textContent = emptyIntentText(person, status);
@@ -527,16 +642,15 @@ function personRow(person) {
 }
 
 function renderPeople() {
-  els.peopleCount.textContent = `${people.length} kişi`;
+  els.peopleCount.textContent = t('people.count', { n: people.length });
   els.peopleList.replaceChildren(...people.map(personRow));
 }
 
-function messageRow({ author, text }) {
-  const person = personById(author);
+function messageRow({ name, avatar, text }) {
   const item = el('li', 'message');
-  item.innerHTML = avatarMarkup(person.avatar);
+  item.innerHTML = avatarMarkup(AVATAR_BY_ID[avatar] ? avatar : 'gozluklu');
   const body = el('div', 'message-body');
-  body.append(el('p', 'message-name', person.name), el('p', 'message-text', text));
+  body.append(el('p', 'message-name', name), el('p', 'message-text', text));
   item.append(body);
   return item;
 }
@@ -544,41 +658,41 @@ function messageRow({ author, text }) {
 function renderChat() {
   // Molada sohbet, önceki tura katılıp katılmadığından bağımsız olarak herkese açıktır.
   const open = state.phase === 'break';
-  els.chatState.textContent = open ? 'Açık' : 'Kapalı';
+  els.chatState.textContent = t(open ? 'chat.open' : 'chat.closed');
   els.chatState.classList.toggle('is-open', open);
   els.chatLocked.hidden = open;
   els.messages.hidden = !open;
   // Kapanırken yazılmakta olan metin silinmez; yalnızca gönderim kapanır.
   els.msgInput.disabled = !open;
-  els.msgInput.placeholder = open ? 'Mesaj yaz…' : 'Sohbet molada açılır';
+  els.msgInput.placeholder = t(open ? 'chat.placeholder' : 'chat.placeholderClosed');
   els.sendBtn.disabled = !open || !els.msgInput.value.trim();
 
   if (open) {
     els.messages.replaceChildren(...messages.map(messageRow));
   } else if (state.phase === 'focus') {
-    els.lockedTitle.textContent = 'Odak sırasında sohbet kapalı';
-    els.lockedText.textContent = `Kimse bölünmesin diye. Mola başlayınca (${clockAt(state.endsAt)}) herkes için açılır.`;
+    els.lockedTitle.textContent = t('chat.focusTitle');
+    els.lockedText.textContent = t('chat.focusText', { time: clockAt(state.endsAt) });
   } else {
-    els.lockedTitle.textContent = 'Sohbet molada açılır';
-    els.lockedText.textContent = 'Bekleme ve odak sırasında sohbet herkes için kapalıdır.';
+    els.lockedTitle.textContent = t('chat.waitTitle');
+    els.lockedText.textContent = t('chat.waitText');
   }
 }
 
 function renderProfile() {
-  const { label } = AVATAR_BY_ID[me.avatar];
+  const label = avatarLabel(me.avatar);
   els.meAvatar.innerHTML = avatarMarkup(me.avatar);
-  els.meAvatar.setAttribute('aria-label', `Profilin: ${label}`);
+  els.meAvatar.setAttribute('aria-label', t('profile.aria', { name: me.name, label }));
   els.profilePreview.replaceChildren(personRow(me));
-  els.avatarLabel.textContent = `Seçili avatar: ${label}`;
+  els.avatarLabel.textContent = t('profile.selected', { label });
 }
 
 function renderAvatarPicker() {
-  els.avatarGrid.innerHTML = AVATARS.map(({ id, label }) => `
+  els.avatarGrid.innerHTML = AVATARS.map(({ id }) => `
     <label class="avatar-option">
       <input class="visually-hidden" type="radio" name="avatar" value="${id}"${id === me.avatar ? ' checked' : ''}>
       ${avatarMarkup(id)}
       <span class="avatar-check" aria-hidden="true">${icon('check')}</span>
-      <span class="visually-hidden">${label}</span>
+      <span class="visually-hidden">${avatarLabel(id)}</span>
     </label>`).join('');
 }
 
@@ -588,7 +702,7 @@ let bannerTimer;
 let audioCtx;
 
 function announcePhase(phase) {
-  els.banner.textContent = PHASE_ANNOUNCEMENTS[phase]();
+  els.banner.textContent = t(`announce.${phase}`, { n: state.duration });
   els.banner.classList.add('show');
   clearTimeout(bannerTimer);
   bannerTimer = setTimeout(() => els.banner.classList.remove('show'), 4000);
@@ -631,8 +745,7 @@ els.durationInputs.forEach((input) => {
 
 els.startForm.addEventListener('submit', (event) => {
   event.preventDefault();
-  if (state.phase === 'waiting') startPhase('focus');
-  else if (state.phase === 'focus' && state.participation === 'none') joinTurn();
+  startOrJoin();
 });
 
 els.leaveBtn.addEventListener('click', () => {
@@ -647,7 +760,7 @@ els.leaveDialog.addEventListener('close', () => {
   }
 });
 
-els.rejoinBtn.addEventListener('click', joinTurn);
+els.rejoinBtn.addEventListener('click', startOrJoin);
 
 els.msgInput.addEventListener('input', () => {
   els.sendBtn.disabled = state.phase !== 'break' || !els.msgInput.value.trim();
@@ -656,110 +769,194 @@ els.msgInput.addEventListener('input', () => {
 els.composer.addEventListener('submit', (event) => {
   event.preventDefault();
   const text = els.msgInput.value.trim();
-  // Gerçek üründe aynı kural sunucuda da uygulanmalı; arayüz kilidi tek başına yeterli değil.
+  // Sunucu da yalnızca molada mesaj kabul eder; reddedilirse yazılan metin silinmez.
   if (state.phase !== 'break' || !text) return;
-  messages.push({ author: me.id, text });
-  els.msgInput.value = '';
-  renderChat();
-  els.messages.scrollTop = els.messages.scrollHeight;
+  els.sendBtn.disabled = true;
+  net.sendMessage(text).then((row) => {
+    addMessage(row);
+    els.msgInput.value = '';
+    renderChat();
+    els.messages.scrollTop = els.messages.scrollHeight;
+  }).catch((error) => {
+    console.error(error);
+    showToast(t('toast.msgFail'));
+    renderChat();
+  });
 });
 
 els.avatarGrid.addEventListener('change', (event) => {
   me.avatar = event.target.value;
   render();
+  net.updateProfile({ avatar: me.avatar }).catch((error) => console.error(error));
 });
+
+els.meAvatar.addEventListener('click', () => showView(state.view === 'profile' ? 'room' : 'profile'));
 
 els.profileDone.addEventListener('click', () => showView('room'));
 
 els.soundToggle.addEventListener('click', () => {
   state.sound = !state.sound;
   els.soundToggle.setAttribute('aria-pressed', String(state.sound));
-  els.soundState.textContent = state.sound ? 'açık' : 'kapalı';
+  els.soundState.textContent = t(state.sound ? 'sound.on' : 'sound.off');
   chime();
 });
 
 els.gameToggles.forEach((input) => {
   input.addEventListener('change', () => {
     game.show[input.dataset.game] = input.checked;
+    saveShow();
     render();
   });
 });
 
-/* Geçici önizleme kontrolü */
-
-const previewFocusElapsed = () => Math.min(7 * 60, state.duration * 60 - 60);
-
-function goTo(phase) {
-  if (phase === 'waiting') {
-    startPhase('waiting');
-    return;
-  }
-  // Önizlemede alanlar boş görünmesin diye örnek niyet doldurulur.
-  if (!me.intent) me.intent = PREVIEW_INTENT;
-  if (phase === 'focus') {
-    startPhase('focus', { elapsed: previewFocusElapsed() });
-  } else {
-    // Önceki odak turuna baştan sona katılmış gibi.
-    fillSampleIntents();
-    state.summary = { kind: 'complete', minutes: state.duration, intent: me.intent, reward: award(state.duration) };
-    startPhase('break', { elapsed: 60 });
-  }
+// Molada boş tarha tohum ekme (scene.js çağırır). Arayüz hemen günceller, sunucu doğrular.
+function onPlantSeed(index) {
+  game.garden[index] = 1;
+  render();
+  net.plantSeed(index).then((garden) => {
+    if (garden) game.garden = [...garden];
+    render();
+  }).catch((error) => {
+    console.error(error);
+    game.garden[index] = 0;
+    render();
+  });
 }
 
-// Kullanıcı odaya ilk kez, aşama sürerken girer; aşama zaten sürüyorsa ortak zamanlayıcı olduğu gibi kalır.
-function arriveDuring(phase) {
-  clearMyIntent();
-  if (state.phase !== phase) {
-    startPhase(phase, { elapsed: phase === 'focus' ? previewFocusElapsed() : 60, silent: true });
-  }
-  state.participation = 'none';
-  state.late = false;
-  state.focusedMs = 0;
-  state.turnIntent = '';
-  state.summary = null;
-  fillSampleIntents();
+/* Oda bağlantısı */
+
+function onPresence(presence) {
+  const others = Object.values(presence)
+    .map((entries) => entries[0])
+    .filter((entry) => entry && entry.id !== me.id);
+  const kept = others.map((entry) => {
+    const person = personById(entry.id) || { id: entry.id };
+    return Object.assign(person, {
+      name: entry.name, avatar: AVATAR_BY_ID[entry.avatar] ? entry.avatar : 'gozluklu',
+      status: entry.status, intent: entry.intent || '', garden: entry.garden || [],
+      pos: person.pos || entry.pos || null,
+    });
+  });
+  people.splice(1, people.length - 1, ...kept);
   render();
 }
 
-// Aşamanın sonuna ileri sarar; katılım süreleri gerçek akıştaki gibi hesaplanır.
-function skipToPhaseEnd() {
-  if (state.phase === 'waiting') {
-    startPhase('focus');
-    return;
-  }
-  const delta = state.endsAt - Date.now();
-  state.endsAt -= delta;
-  state.joinedAt -= delta;
-  tick();
+function onMove(payload) {
+  const person = personById(payload.id);
+  if (person && person !== me) person.pos = { x: payload.x, y: payload.y, dir: payload.dir, flip: payload.flip };
 }
 
-els.preview.addEventListener('click', (event) => {
-  const button = event.target.closest('button');
-  if (!button || button === els.previewToggle) return;
-  if (button.dataset.open === 'profile') {
-    showView('profile');
-    return;
-  }
-  showView('room');
-  if (button.dataset.goto) goTo(button.dataset.goto);
-  else if (button.dataset.arrive) arriveDuring(button.dataset.arrive);
-  else if ('next' in button.dataset) skipToPhaseEnd();
-  else if ('nearLevel' in button.dataset) {
-    game.xp = levelOf(game.xp) * XP_PER_LEVEL - 2;
-    render();
-  }
+function onEmote(payload) {
+  if (state.phase === 'focus' || !personById(payload.id)) return;
+  scene.showEmote(payload.id, payload.kind);
+}
+
+const EMOTES = ['wave', 'heart', 'coffee'];
+let lastEmoteAt = 0;
+
+els.emoteButtons.forEach((button) => {
+  button.querySelector('.emote-icon').innerHTML = pixelIcon(button.dataset.emote);
+  button.addEventListener('click', () => {
+    const kind = button.dataset.emote;
+    const now = performance.now();
+    if (state.phase === 'focus' || !EMOTES.includes(kind) || now - lastEmoteAt < 800) return;
+    lastEmoteAt = now;
+    scene.showEmote(me.id, kind);
+    net.sendEmote(kind);
+  });
 });
 
-els.previewToggle.addEventListener('click', () => {
-  const collapsed = els.preview.classList.toggle('is-collapsed');
-  els.previewToggle.setAttribute('aria-expanded', String(!collapsed));
-  els.previewToggle.textContent = collapsed ? 'Göster' : 'Gizle';
+els.langToggle.addEventListener('click', () => {
+  setLang(lang === 'tr' ? 'en' : 'tr');
+  els.joinSchedule.textContent = t('join.schedule', { times: scheduleTimesText() });
+  els.soundState.textContent = t(state.sound ? 'sound.on' : 'sound.off');
+  renderAvatarPicker();
+  lastClock = '';
+  render();
+});
+
+function onRoom(row) {
+  setRoom(row);
+  syncPhase();
+}
+
+function onMessage(row) {
+  if (state.phase !== 'break') return;
+  addMessage(row);
+  renderChat();
+  els.messages.scrollTop = els.messages.scrollHeight;
+}
+
+async function enterRoom(profile) {
+  applyProfile(profile);
+  els.joinView.hidden = true;
+  els.roomView.hidden = false;
+  document.body.classList.remove('is-joining');
+  await net.syncClock();
+  const [room, week] = await Promise.all([net.loadRoom(), net.weekMinutes()]);
+  setRoom(room);
+  game.roomWeekMinutes = week;
+  if (room.started_at) applyParticipation(await net.loadParticipation(room.started_at));
+  state.online = true;
+  state.turnStart = roomPhase() === 'waiting' ? 0 : state.room.startedAt;
+  renderAvatarPicker();
+  enterPhase(roomPhase(), { silent: true });
+  net.connect({ presence: onPresence, move: onMove, emote: onEmote, room: onRoom, message: onMessage, ready: trackPresence });
+  scene.init();
+  setInterval(tick, 250);
+  document.addEventListener('visibilitychange', tick);
+}
+
+function showJoin(message = '') {
+  els.joinView.hidden = false;
+  els.roomView.hidden = true;
+  document.body.classList.add('is-joining');
+  els.joinError.textContent = message;
+  els.joinError.hidden = !message;
+  els.nicknameInput.focus();
+}
+
+els.joinForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const nickname = els.nicknameInput.value.trim();
+  if (!nickname) return;
+  els.joinBtn.disabled = true;
+  try {
+    if (!net.userId) await net.signIn();
+    const avatar = AVATARS[Math.floor(Math.random() * AVATARS.length)].id;
+    let profile = await net.loadProfile();
+    if (!profile) {
+      // Saklı oturum artık geçerli değilse (ör. kullanıcı silindiyse) yeni bir anonim oturum açılır.
+      profile = await net.createProfile(nickname, avatar).catch(async () => {
+        await net.signIn();
+        return net.createProfile(nickname, avatar);
+      });
+    }
+    await enterRoom(profile);
+  } catch (error) {
+    console.error(error);
+    showJoin(t('join.error'));
+  } finally {
+    els.joinBtn.disabled = false;
+  }
 });
 
 /* Başlangıç */
 
-renderAvatarPicker();
-render();
-scene.init();
-setInterval(tick, 250);
-document.addEventListener('visibilitychange', tick);
+async function boot() {
+  applyStaticText();
+  els.joinSchedule.textContent = t('join.schedule', { times: scheduleTimesText() });
+  els.soundState.textContent = t('sound.off');
+  render();
+  try {
+    const userId = await net.restoreSession();
+    const profile = userId ? await net.loadProfile() : null;
+    if (profile) await enterRoom(profile);
+    else showJoin();
+  } catch (error) {
+    console.error(error);
+    showJoin(t('join.error'));
+  }
+}
+
+boot();

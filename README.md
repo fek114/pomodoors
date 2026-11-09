@@ -1,10 +1,12 @@
 # PomoDoors
 
-> Bu dal, Eşlik ürününün oyunlaştırılmış bir varyantıdır. Oda, tur ve sohbet kuralları Eşlik ile aynıdır; üzerine büyüyen bir bahçe, XP ve seviye, para birimi, seri ve liderlik tablosu eklenir. Görsel dil özgün, sıcak bir piksel sanattır.
+> Bu dal, Eşlik ürününün oyunlaştırılmış bir varyantıdır. Oda, tur ve sohbet kuralları Eşlik ile aynıdır; üzerine büyüyen bir bahçe, XP ve seviye, Yaprak, seri ve ortak bahçe eklenir. Görsel dil özgün, sıcak bir piksel sanattır.
+>
+> **Slogan:** Pomodoro, ama birlikte · *Pomodoro, but together.* **Konumlandırma:** Çalışırken bahçen büyür. Arayüz Türkçe ve İngilizce.
 
 Başlaması zor gelen işler için sakin ve yargılamayan bir ortak çalışma web uygulaması. Kullanıcı kısa bir niyet yazar, süresini seçer ve kamerasız bir odada başkalarıyla aynı anda çalışır. Odakta geçen dakikalar kişinin kendi bahçesini büyütür. Odak sırasında sohbet kapalıdır, molada açılır.
 
-> **Durum:** Bu depoda yalnızca statik bir arayüz prototipi var (`prototip/`). Backend, üyelik, veritabanı, gerçek zamanlı eşzamanlama ve veri kaydı **henüz yok**. Teknoloji yığını seçilmedi.
+> **Durum:** `prototip/` artık Supabase'e bağlı çalışan bir web uygulaması: takma adla giriş (arka planda anonim oturum), tek ortak oda, sunucuda uygulanan tur ve sohbet kuralları, kalıcı profil ve bahçe, gerçek zamanlı katılımcılar, molada paylaşılan konumlar ve tepkiler, her gün planlı ortak turlar, Türkçe ve İngilizce arayüz. Henüz bir yerde yayında değil; yerelde açılır.
 >
 > "PomoDoors" bir çalışma adıdır, kesinleşmedi.
 
@@ -75,18 +77,22 @@ Oyun öğeleri kişiye eşlik etmek için var; baskı kurmak, cezalandırmak ya 
 - Seri bozulursa kayıp mesajı, uyarı ya da kırmızı gösterge çıkmaz; sayaç sessizce yeniden başlar. En uzun seri kişinin geçmişinde kalır.
 - Seri hiçbir ödülün şartı değildir. "Serin bozulmak üzere" gibi hatırlatmalar gönderilmez.
 
-### Liderlik tablosu
+### Ortak bahçe
 
-- İsteğe bağlıdır ve varsayılan olarak kapalıdır. Kullanıcı katılmayı seçmedikçe tabloda görünmez.
-- Haftalık odak dakikasını gösterir ve her hafta yeniden başlar.
-- Yalnızca davetli pilot grubunu kapsar. Alt sıralar vurgulanmaz; "geride kaldın" gibi ifadeler kullanılmaz.
+- Liderlik tablosunun yerini alır. Odadakilerin bu hafta birlikte topladığı odak dakikalarını tek bir toplam olarak gösterir: "Bu hafta odadakiler birlikte 340 dk odaklandı."
+- Kimse sıralanmaz, kişi bazında süre gösterilmez. Her pazartesi yeniden başlar.
+
+### Tepkiler ve planlı ortak turlar
+
+- Bekleme ve molada karakterin üstünde kısa piksel tepkiler: el sallama, kalp, kahve. Odakta kapalıdır.
+- Her gün İstanbul saatiyle 10:00, 14:00 ve 21:00'de oda beklemedeyse 25 dk'lık bir ortak tur kendiliğinden başlar (sunucu zamanlayıcısı, pg_cron). Odadakiler "Kalan süreye katıl" ile katılır.
 
 ### Prototip varsayılanları
 
 - 1 dk odak = 1 XP = 1 Yaprak. Para biriminin adı Yaprak.
 - Her seviye 100 XP. Her yeni seviyede bahçede bir boş tarh açılır.
 - Odakta geçen her 5 dk bahçede bir bitkiyi bir adım büyütür: boş tarh → tohum → filiz → genç bitki → çiçek.
-- Seri, günün ilk odak katkısıyla sessizce artar.
+- Seri, günün ilk odak katkısıyla sessizce artar; en fazla iki günlük ara seriyi bozmaz.
 - Molada boş tarha tohum ekmek ücretsizdir.
 - Piksel sanat 16×16 ızgarada çizilir (simgeler 8×8). Başlık yazı tipi Pixelify Sans, gövde Inter.
 
@@ -94,9 +100,9 @@ Oyun öğeleri kişiye eşlik etmek için var; baskı kurmak, cezalandırmak ya 
 
 - Her oyun öğesi ayarlardan ayrı ayrı gizlenebilir. Tümünü kapatan kullanıcı sade bir ortak çalışma odası görür.
 
-## Güncel statik prototip
+## Güncel prototip
 
-`prototip/` klasöründe tek sayfalık bir HTML/CSS/JS prototipi var. Amacı oda deneyimini ve görsel dili denemek.
+`prototip/` klasöründe Supabase'e bağlı, tek sayfalık bir HTML/CSS/JS uygulaması var.
 
 ### Kapsadıkları
 
@@ -108,55 +114,19 @@ Oyun öğeleri kişiye eşlik etmek için var; baskı kurmak, cezalandırmak ya 
 - **Aşama geçişleri:** ekranda kısa bir bildirim ve isteğe bağlı ses (varsayılan kapalı).
 - **Katılımcı listesi:** avatar, ad, niyet ve durum ("Beklemede", "Odakta", "Molada", "Turdan ayrıldı", "Henüz katılmadı"). Durumlar metin ve ikonla gösterilir.
 - **Profil / avatar seçimi:** 8 özgün SVG avatar. Seçim başlıkta, katılımcı listesinde ve sohbette hemen görünür.
+- **Giriş:** tek alan, "Takma adın". Arka planda Supabase anonim oturumu açılır; profil ve bahçe o tarayıcıda hatırlanır.
+- **Gerçek zamanlı oda:** kimin odada olduğu (presence), molada karakter konumları ve tepkiler (broadcast), tur başlangıcı ve yeni mesajlar (veritabanı değişiklikleri).
+- **İki dil:** üst bardaki TR / EN düğmesi. Tüm metinler `i18n.js` içinde.
 - **Görünüm:** masaüstü ve mobil genişliklere uyum, açık ve koyu tema.
-- **Geçici önizleme kontrolü:** sayfanın altındaki koyu, kesik çizgili çubuk. Ürün arayüzünün parçası değildir, yalnızca halleri incelemek için vardır.
 
 ### Henüz yapmadıkları
 
-- Backend, API ve veritabanı yok.
-- Üyelik, giriş ve oturum yönetimi yok. Kullanıcı her zaman "Sen".
-- Gerçek zamanlı eşzamanlama yok. Diğer katılımcılar, niyetleri ve mesajları sahte; zamanlayıcı yalnızca tarayıcıda çalışır.
-- Veri kaydı yok. Sayfa yenilenince her şey başa döner.
-- Sohbet kuralı yalnızca arayüzde uygulanıyor; sunucu tarafında denetim yok.
-- Görev listesi, mağaza ve oturum/görev geçmişi yok. Oyun öğeleri sahte verilerle çalışır ve sayfa yenilenince sıfırlanır.
-- Giriş, oda önü, geçmiş ve ayarlar ekranları yok.
+- Yayında değil; ön yüz yalnızca yerelde açılır.
+- Kalıcı hesap yok. Tarayıcı verisi silinirse ya da cihaz değişirse profil taşınmaz.
+- Görev listesi, mağaza ve oturum/görev geçmişi yok.
 - Otomatik test yok.
-- Avatarlar hâlâ eski vektör çizimler; piksel sanata dönüştürülmedi.
+- Avatarlar listede ve sohbette hâlâ vektör çizimler; sahnede piksel karakterler var.
 
-## Genişletilmiş MVP kapsamı
-
-### 1. E-posta ile üyelik ve basit profil
-
-- Küçük, davetli bir pilot için e-posta ile üyelik.
-- Profilde görünen ad ve avatar bulunur.
-
-### 2. Görsel avatar galerisi ve profil avatarı seçimi
-
-- Aynı görsel dilde çizilmiş, özgün ve hazır illüstratif avatarlar.
-- Kullanıcı galeriden birini seçer. Seçim odada, katılımcı listesinde ve sohbette görünür.
-
-### 3. Ortak Bekleme / Odak / Mola odası
-
-MVP'de davetli pilot için tek bir ortak oda olacak. Bu kurallar kararlaştırıldı:
-
-- Oda her an tek bir senkron turdadır: Bekleme → Odak → Mola → Bekleme.
-- Varsayılan 25 dk odak, 5 dk mola. Turu başlatan kişi 15, 25 ya da 45 dk seçebilir; mola her zaman 5 dk.
-- Beklemede odadaki herkes tur başlatabilir. İki istek aynı anda gelirse ilk kabul edilen başlatır.
-- Tur başladıktan sonra katılan kişi kalan süreye dahil olur. Odaya girmek zamanlayıcıyı sıfırlamaz.
-- Ortak tur iptal edilmez. Kullanıcı yalnızca kendi katılımını bitirebilir; çıkması zamanlayıcıyı etkilemez.
-- Mola bitince oda beklemeye geçer. Yeni tur kendiliğinden başlamaz.
-- Niyet kişisel ve isteğe bağlıdır. O an odada bulunanlara görünür ve yeni tura taşınmaz.
-- Aşama değişimleri ekranda belirgin gösterilir. Sesli uyarı isteğe bağlıdır, varsayılanı kapalıdır.
-- Her kullanıcıya yalnızca gerçekten katıldığı odak süresi kaydedilir; alt sınır yoktur. Özet örnekleri:
-  - "25 dk odak · turun sonuna kadar kaldın"
-  - "8 dk odak · sonradan katıldı"
-  - "12 dk odak · turdan ayrıldı"
-- Kişisel tur özeti yalnızca o tura katılmış kullanıcıya gösterilir.
-
-### 4. Yalnızca molada açık sohbet
-
-- Sohbet yalnızca oda moladayken açıktır. Bekleme ve Odak'ta herkes için kapalıdır.
-- Molada odaya ilk kez giren kullanıcı da yazabilir.
 - Kural hem arayüzde hem sunucuda uygulanmalı. Sunucu mesajı kendi saatine ve odanın o anki aşamasına göre kabul eder ya da reddeder. Reddedilen mesajın metni kullanıcının ekranından silinmez.
 
 ### 5. Kişisel görev listesi
@@ -166,9 +136,9 @@ MVP'de davetli pilot için tek bir ortak oda olacak. Bu kurallar kararlaştırı
 
 ### 6. Oyun öğeleri
 
-- Büyüyen bahçe, XP ve seviye, oyun içi para birimi, seri ve isteğe bağlı liderlik tablosu.
+- Büyüyen bahçe, XP ve seviye, Yaprak, seri, ortak bahçe ve tepkiler.
 - Kurallar ve sınırlar [Oyunlaştırma](#oyunlaştırma) bölümündedir.
-- Statik prototipte sahte verilerle bağlandı: durum çubuğu, bahçe paneli, mola özetindeki ödül satırları, isteğe bağlı tablo ve gizleme ayarları.
+- Prototipte Supabase'e bağlı çalışır; ödüller sunucuda hesaplanır.
 
 ### 7. Kişisel oturum ve görev geçmişi
 
@@ -180,7 +150,6 @@ MVP'de davetli pilot için tek bir ortak oda olacak. Bu kurallar kararlaştırı
 - Kamera ve ses
 - Yabancılarla eşleştirme
 - Herkese açık oda keşfi ve çoklu oda
-- Pilot grubu dışına açık liderlik tablosu
 - Mobil uygulama. Varsayım: MVP mobil tarayıcıda kullanılabilir olacak.
 - Gelişmiş analitik
 - Tarayıcı bildirimleri
@@ -189,14 +158,14 @@ MVP'de davetli pilot için tek bir ortak oda olacak. Bu kurallar kararlaştırı
 
 Bu konular henüz karara bağlanmadı. İlgili bir değişiklikten önce sorun:
 
-- E-posta ile giriş yöntemi: tek kullanımlık bağlantı mı, parola mı?
-- Teknoloji yığını ve barındırma: backend, gerçek zamanlı katman, veritabanı.
+- Pilot sonrası kalıcı hesap: anonim oturuma e-posta bağlamak gerekecek mi? (Pilotta yalnızca takma ad.)
+- Ön yüzün yayınlanacağı yer ve alan adı. Veritabanı ve gerçek zamanlı katman: Supabase, Frankfurt.
 - Görev listesi ile tur niyeti arasındaki bağ: niyet bir görevden seçilebilecek mi?
 - Tohum, süs ve aksesuarların Yaprak fiyatları; mağaza ekranı.
 - XP eğrisi pilotta sabit 100 XP olarak kalsın mı?
 - Tamamlanan küçük görevler de XP ya da para kazandırsın mı? Kazandırırsa "XP yalnızca odaktan gelir" kuralı değişir.
 - Bahçe odadaki diğer kişilere görünsün mü?
-- Liderlik tablosunun yerine ya da yanında, odadakilerin birlikte büyüttüğü ortak bir bahçe olsun mu?
+- Ortak tur saatleri (şimdilik 10:00, 14:00, 21:00) pilot sonrası değişsin mi?
 - Mevcut 8 SVG avatar piksel sanata dönüştürülsün mü?
 - Avatar galerisine fotoğraf yükleme eklenip eklenmeyeceği. Şu anki yön yalnızca hazır avatarlar.
 - Pilot ölçeği: aynı anda kaç kişi?
@@ -208,58 +177,47 @@ Bu konular henüz karara bağlanmadı. İlgili bir değişiklikten önce sorun:
 .
 ├── README.md          # bu belge
 └── prototip/
-    ├── index.html     # oda ve profil görünümleri, önizleme kontrolü
+    ├── index.html     # giriş, oda ve profil görünümleri
     ├── styles.css     # tasarım belirteçleri (:root), açık/koyu tema
     ├── avatars.js     # SVG avatar seti
-    ├── scene.js       # bahçe sahnesi: canvas, karolar, karakterler
-    └── app.js         # sahte veri, aşama mantığı, etkileşimler
+    ├── i18n.js        # Türkçe ve İngilizce metinler
+    ├── scene.js       # bahçe sahnesi: canvas, karolar, karakterler, tepkiler
+    ├── net.js         # Supabase bağlantısı: oturum, oda, presence, broadcast
+    └── app.js         # aşama akışı, arayüz, etkileşimler
 ```
 
 ## Kurulum ve prototipi açma
 
-Kurulum, paket yükleme ya da derleme adımı yok.
+Kurulum, paket yükleme ya da derleme adımı yok. Supabase istemcisi (supabase-js 2.118.0) CDN'den yüklenir; veritabanı Supabase'te (Frankfurt) hazırdır.
 
-1. Prototipi doğrudan tarayıcıda açın. macOS'te depo kökünden:
-
-   ```sh
-   open prototip/index.html
-   ```
-
-   Diğer sistemlerde `prototip/index.html` dosyasına çift tıklayın.
-
-2. İsterseniz yerel bir sunucuyla açın, sonra <http://localhost:8000> adresine gidin:
+1. Yerel bir sunucuyla açın, sonra <http://localhost:8000> adresine gidin:
 
    ```sh
    python3 -m http.server 8000 --directory prototip
    ```
 
-3. Yazı tipleri (Pixelify Sans, Inter) Google Fonts'tan yüklenir. Çevrimdışıyken sistem yazı tipleri kullanılır, sayfa yine çalışır.
+2. Takma adınızı yazıp odaya girin. İkinci bir kullanıcıyla denemek için aynı sayfayı <http://127.0.0.1:8000> adresinden açın; farklı adres ayrı tarayıcı deposu kullanır.
 
-### Önizleme kontrolü
+3. Yazı tipleri (Pixelify Sans, Inter) Google Fonts'tan yüklenir. Çevrimdışıyken sistem yazı tipleri kullanılır.
 
-| Kontrol | Ne yapar |
-| --- | --- |
-| Bekleme / Odak / Mola | Odayı o hale getirir. Odak, turun 7. dakikasından açılır. Mola, önceki tura baştan sona katılmış gibi açılır. |
-| Sonraki aşama → | Aktif aşamanın sonuna ileri sarar. Özetlerdeki süreler gerçek katılımdan hesaplanır. |
-| Odaya gir: Odak sürerken | Odaya odak sürerken ilk kez girmiş olursun ve "Kalan süreye katıl" akışını denersin. |
-| Odaya gir: Molada | Odaya molada ilk kez girmiş olursun. Sohbet açıktır, tur özeti gösterilmez. |
-| Profil ve oyun ayarları | Avatar seçimini ve oyun öğelerini gizleme ayarlarını açar. |
-| Oyun: Seviyeye 2 XP kala | XP'yi bir sonraki seviyenin 2 altına getirir; seviye atlama özetini denemek için. |
-| Gizle / Göster | Çubuğu küçültür ya da açar. |
+### Sunucu tarafı
+
+- Tablolar: `profiles`, `rooms` (tek ortak oda), `participations`, `messages`. RLS açık; kullanıcı XP, Yaprak ve bahçeyi kendisi yazamaz.
+- Fonksiyonlar: `start_turn`, `join_turn`, `leave_turn`, `claim_reward`, `plant_seed`, `room_week_minutes`, `start_scheduled_turn` (yalnızca zamanlayıcı çağırır).
+- Ücretsiz Supabase projeleri bir hafta hiç kullanılmazsa duraklatılır; panelden tek tıkla yeniden açılır, veri silinmez.
 
 ## Ajan yönergeleri
 
 1. **Önce bu README'yi oku.** Ürün kurallarını ve kapsamı buradan al. Kodla README arasında çelişki görürsen sor.
-2. **Türkçe ürün metinlerini koru.** Arayüz metinleri Türkçe ve yargılamayan bir tonla yazıldı. Gerekçesiz yeniden yazma ya da çeviri yapma; değişiklik gerekiyorsa öner.
+2. **Metinleri iki dilde ve aynı tonda tut.** Arayüz metinleri `prototip/i18n.js` içinde Türkçe ve İngilizce, yargılamayan bir tonla yazıldı. Yeni metni iki dilde ekle; gerekçesiz yeniden yazma, değişiklik gerekiyorsa öner.
 3. **Kapsamı büyütmeden önce sor.** Yukarıdaki MVP listesinde olmayan bir özellik, ekran, bağımlılık ya da servis eklemeden önce onay al. [Açık kararlar](#açık-kararlar) bölümündeki konularda kendi başına karar verme.
 4. **ADHD için tıbbi etki iddiası yazma.** "Tedavi eder", "odaklanmayı garanti eder", "bilimsel olarak kanıtlanmış" gibi ifadeler kullanma. "Kolaylaştırmayı amaçlar" gibi ölçülü ifadeler kullan.
 5. **Oyun öğelerini [Oyunlaştırma](#oyunlaştırma) bölümündeki sınırlar içinde tut.** Kazanılanı geri alan, seri bozulunca kayıp gösteren, alt sıraları vurgulayan, oyun öğelerini zorunlu kılan ya da gerçek parayla satın alma isteyen bir şey ekleme.
-6. **Gerçek backend veya auth varmış gibi davranma.** Prototipteki veriler sahte. Olmayan altyapıyı kodda, metinde ya da raporlarda varmış gibi anlatma. Bir şeyi doğrulamadıysan bunu açıkça söyle.
+6. **Kuralları sunucuda tut, olmayanı var gibi anlatma.** Tur, ödül, sohbet ve tohum kuralları Supabase fonksiyonlarında ve RLS'te. Bir kuralı yalnızca istemciye taşıma. E-posta girişi ya da yayın gibi henüz olmayan altyapıyı varmış gibi anlatma. Bir şeyi doğrulamadıysan bunu açıkça söyle.
 7. **Her değişikliği küçük ve incelenebilir tut.** Bir seferde tek bir konu üzerinde çalış. Her parçayı uygulamadan önce neyi neden değiştireceğini kısaca yazıp onaya sun.
 
 Ayrıca:
 
 - Görseller özgün piksel sanat olmalı. Var olan bir oyunun çizimlerini, karakterlerini, arayüz parçalarını ya da yazı tipini kopyalama.
 - Durumları yalnızca renkle anlatma; metin ya da ikon ekle.
-- Önizleme kontrolünü ürün arayüzünün parçası gibi tasarlama.
 - Renkler ve yazı tipleri `prototip/styles.css` başındaki `:root` belirteçlerinde. Yeni renk eklemeden önce mevcut belirteçleri kullan.

@@ -1,0 +1,400 @@
+// PomoDoors · iki dil (Türkçe, İngilizce).
+// Arayüzdeki her metin buradan gelir. İki dil de aynı sakin ve yargılamayan tonda yazılır.
+// HTML'de data-i18n (metin), data-i18n-placeholder, data-i18n-aria, data-i18n-title kullanılır.
+// İngilizcede tekil biçim gerekiyorsa anahtarın ".one" sürümü kullanılır (n === 1).
+
+const I18N = {
+  tr: {
+    'doc.title': 'PomoDoors · Ortak oda',
+    'lang.switch': 'EN',
+    'lang.switchAria': 'Switch to English',
+    'room.name': 'Ortak oda',
+    'stats.aria': 'Oyun durumun',
+    'sound.title': 'Aşama değiştiğinde kısa bir ses çalar',
+    'sound.label': 'Ses',
+    'sound.on': 'açık',
+    'sound.off': 'kapalı',
+    'me.aria': 'Profil ve ayarlar',
+
+    'join.eyebrow': 'Pomodoro, ama birlikte',
+    'join.title': 'Çalışırken bahçen büyür.',
+    'join.lede': 'Kısa bir niyet yaz, süreni seç, başkalarıyla sessizce çalış. Kamera yok, yarış yok.',
+    'join.label': 'Takma adın',
+    'join.placeholder': 'ör. Deniz',
+    'join.button': 'Odaya gir',
+    'join.fine': 'Hesap ve parola yok. Takma adın ve bahçen bu tarayıcıda hatırlanır.',
+    'join.schedule': 'Ortak turlar her gün {times} saatlerinde kendiliğinden başlar.',
+    'join.error': 'Odaya şu an bağlanılamadı. Biraz sonra tekrar dener misin?',
+
+    'scene.aria': 'Bahçe sahnesi',
+    'stage.aria': 'Tur',
+    'side.aria': 'Katılımcılar ve sohbet',
+    'intent.label': 'Bu turda neye odaklanacaksın?',
+    'intent.placeholder': 'ör. Raporun giriş bölümünü yazmak',
+    'intent.hint': 'İsteğe bağlı · Yalnızca o an odada olanlar görür.',
+    'duration.legend': 'Odak süresi',
+    'duration.15': '15 dk',
+    'duration.25': '25 dk',
+    'duration.45': '45 dk',
+    'duration.hint': 'Ardından her zaman 5 dakika mola.',
+    'start.button': 'Turu başlat',
+    'start.join': 'Kalan süreye katıl',
+    'start.note': 'Odadaki herkes turu başlatabilir. Başlayan tur herkes için birlikte ilerler.',
+    'start.joinNote': 'Kaydın katıldığın andan başlar; ortak zamanlayıcı değişmez.',
+    'focus.intentLabel': 'Niyetin',
+    'focus.noIntent': 'Bu tur için niyet eklemedin.',
+    'focus.late': 'Sonradan katıldın; turun kalan süresine dahilsin.',
+    'focus.leave': 'Turdan ayrıl',
+    'focus.leaveNote': 'Yalnızca senin katılımın biter; oda zamanlayıcısı devam eder.',
+    'left.label': 'Turdan ayrıldın',
+    'left.saved': 'Şimdiye kadar {time} odak kaydedildi.',
+    'left.note': 'Oda turu herkes için sürüyor. Mola başladığında sohbet açılır.',
+    'left.rejoin': 'Tura geri dön',
+    'summary.label': 'Bu turun özeti',
+    'summary.line': '{time} odak · {kind}',
+    'summary.noIntent': 'Bu tur için niyet eklenmemişti.',
+    'summary.complete': 'turun sonuna kadar kaldın',
+    'summary.late': 'sonradan katıldı',
+    'summary.left': 'turdan ayrıldı',
+    'break.noteIn': 'Ekrandan birkaç dakika uzaklaşmak iyi gelebilir.',
+    'break.noteOut': 'Oda molada; sohbet herkese açık. Mola bitince yeni turu odadaki herkes başlatabilir.',
+
+    'phase.waiting': 'Bekleme',
+    'phase.focus': 'Odak',
+    'phase.break': 'Mola',
+    'phase.detailFocus': '· {n} dk tur',
+    'phase.detailBreak': '· {n} dk',
+    'announce.focus': 'Odak başladı · {n} dk',
+    'announce.break': 'Odak bitti · Mola başladı, sohbet açık',
+    'announce.waiting': 'Mola bitti · Oda beklemede',
+    'meta.waiting': 'Yeni tur başlamayı bekliyor · Sıradaki ortak tur {time}',
+    'meta.break': 'Beklemeye geçiş {time}',
+    'meta.focus': 'Mola başlangıcı {time}',
+    'meta.focusOut': 'Oda turu devam ediyor · Mola başlangıcı {time}',
+
+    'status.waiting': 'Beklemede',
+    'status.focus': 'Odakta',
+    'status.break': 'Molada',
+    'status.left': 'Turdan ayrıldı',
+    'status.none': 'Henüz katılmadı',
+    'mystatus.left': 'Turdan ayrıldın',
+    'mystatus.none': 'Henüz katılmadın',
+
+    'reward.xp': '+{n} XP · +{n} Yaprak',
+    'reward.steps': 'Bahçen {n} adım büyüdü',
+    'reward.carry': 'Dakikaların bir sonraki büyümeye eklendi',
+    'reward.levelGarden': 'Seviye {n} · bahçende yeni bir tarh açıldı',
+    'reward.level': 'Seviye {n}',
+    'stats.level': 'Seviye {n}',
+    'stats.leaves': '{n} Yaprak',
+    'stats.streak': 'Seri: {n} gün',
+    'garden.caption': 'Bahçen: {n} bitki · Odakta geçen her {m} dakika bir bitkiyi bir adım büyütür. Bitkiler solmaz.',
+    'stage.0': '{n} boş tarh',
+    'stage.1': '{n} tohum',
+    'stage.2': '{n} filiz',
+    'stage.3': '{n} genç bitki',
+    'stage.4': '{n} çiçek',
+    'stageName.1': 'tohum',
+    'stageName.2': 'filiz',
+    'stageName.3': 'genç bitki',
+    'stageName.4': 'çiçek',
+
+    'people.title': 'Odadakiler',
+    'people.count': '{n} kişi',
+    'intent.sr': 'Niyet: ',
+    'intent.emptyOther': 'Niyet paylaşılmadı',
+    'intent.emptyMine': 'Niyetin burada görünür',
+    'intent.emptyAdded': 'Niyet eklenmedi',
+    'board.title': 'Ortak bahçe',
+    'board.reset': 'Pazartesi yeniden başlar',
+    'board.text': 'Bu hafta odadakiler birlikte {n} dk odaklandı.',
+    'board.empty': 'Bu haftanın ilk turu henüz tamamlanmadı.',
+    'board.fine': 'Odadaki herkesin odak dakikaları burada birlikte birikir. Kimse sıralanmaz.',
+
+    'chat.title': 'Sohbet',
+    'chat.open': 'Açık',
+    'chat.closed': 'Kapalı',
+    'chat.msgLabel': 'Mesaj',
+    'chat.send': 'Gönder',
+    'chat.placeholder': 'Mesaj yaz…',
+    'chat.placeholderClosed': 'Sohbet molada açılır',
+    'chat.focusTitle': 'Odak sırasında sohbet kapalı',
+    'chat.focusText': 'Kimse bölünmesin diye. Mola başlayınca ({time}) herkes için açılır.',
+    'chat.waitTitle': 'Sohbet molada açılır',
+    'chat.waitText': 'Bekleme ve odak sırasında sohbet herkes için kapalıdır.',
+
+    'emote.aria': 'Tepkiler',
+    'emote.wave': 'El salla',
+    'emote.heart': 'Kalp',
+    'emote.coffee': 'Kahve',
+    'emote.closed': 'Tepkiler molada ve beklemede açılır.',
+
+    'profile.eyebrow': 'Profil',
+    'profile.title': 'Avatarını seç',
+    'profile.lede': 'Odadakiler seni bu avatarla görür. Dilediğin zaman değiştirebilirsin.',
+    'profile.options': 'Avatar seçenekleri',
+    'profile.preview': 'Odada böyle görünürsün',
+    'profile.selected': 'Seçili avatar: {label}',
+    'profile.aria': 'Profil ve ayarlar · {name}, {label}',
+    'profile.done': 'Odaya dön',
+    'settings.title': 'Oyun öğeleri',
+    'settings.fine': 'Kapattığın öğe yalnızca ekranından kalkar; biriktirdiklerin silinmez.',
+    'settings.garden': 'Bahçe',
+    'settings.xp': 'Seviye, XP ve Yaprak',
+    'settings.streak': 'Seri',
+    'settings.board': 'Ortak bahçe',
+    'settings.boardNote': 'Odadakilerin bu hafta birlikte topladığı süre.',
+
+    'leave.title': 'Turdan ayrılmak istiyor musun?',
+    'leave.bodyA': 'Şimdiye kadarki',
+    'leave.bodyB': 'odak süren kaydedilir. Oda zamanlayıcısı herkes için devam eder.',
+    'leave.stay': 'Vazgeç',
+    'leave.leave': 'Turdan ayrıl',
+
+    'toast.error': 'Bağlantıda bir sorun oldu. Bir daha dener misin?',
+    'toast.msgFail': 'Mesaj gönderilemedi. Metnin duruyor; sohbet yalnızca molada açık.',
+    'time.short': "1 dk'dan kısa",
+    'time.min': '{n} dk',
+    'timer.aria': '{m} dakika {s} saniye',
+
+    'scene.desc': 'Bahçe sahnesi, {phase}. {who}.{plants}',
+    'scene.meFocus': 'Sen ({name}) kendi tarhında çalışıyorsun',
+    'scene.meStatus': 'Sen ({name}): {status}',
+    'scene.plants': ' Bahçende {list} var.',
+    'hint.focusIn': 'Karakterin bahçende çalışıyor. Dolaşmak molada açılır.',
+    'hint.focusOut': 'Oda odakta. Dolaşmak molada açılır.',
+    'hint.roamGarden': "Bir yere dokun ya da ok tuşları / WASD ile dolaş. Boş bir tarha dokunursan ya da üstündeyken E'ye basarsan tohum ekersin.",
+    'hint.roam': 'Bir yere dokun ya da ok tuşları / WASD ile dolaş.',
+    'hint.planted': 'Tohum ekildi.',
+    'hint.occupied': 'Bu tarhta {name} var.',
+  },
+
+  en: {
+    'doc.title': 'PomoDoors · Shared room',
+    'lang.switch': 'TR',
+    'lang.switchAria': 'Türkçeye geç',
+    'room.name': 'Shared room',
+    'stats.aria': 'Your progress',
+    'sound.title': 'Plays a short sound when the phase changes',
+    'sound.label': 'Sound',
+    'sound.on': 'on',
+    'sound.off': 'off',
+    'me.aria': 'Profile and settings',
+
+    'join.eyebrow': 'Pomodoro, but together',
+    'join.title': 'Your garden grows while you work.',
+    'join.lede': 'Write a short intention, pick a length, and work quietly alongside others. No camera, no competition.',
+    'join.label': 'Your nickname',
+    'join.placeholder': 'e.g. Robin',
+    'join.button': 'Enter the room',
+    'join.fine': 'No account, no password. Your nickname and garden are remembered in this browser.',
+    'join.schedule': 'Shared rounds start on their own every day at {times}.',
+    'join.error': "Couldn't reach the room right now. Could you try again in a moment?",
+
+    'scene.aria': 'Garden scene',
+    'stage.aria': 'Round',
+    'side.aria': 'People and chat',
+    'intent.label': 'What will you focus on this round?',
+    'intent.placeholder': 'e.g. Write the intro of the report',
+    'intent.hint': 'Optional · Only people in the room right now can see it.',
+    'duration.legend': 'Focus length',
+    'duration.15': '15 min',
+    'duration.25': '25 min',
+    'duration.45': '45 min',
+    'duration.hint': 'Always followed by a 5-minute break.',
+    'start.button': 'Start a round',
+    'start.join': 'Join for the remaining time',
+    'start.note': 'Anyone in the room can start a round. Once started, it runs together for everyone.',
+    'start.joinNote': 'Your time counts from when you join; the shared timer stays the same.',
+    'focus.intentLabel': 'Your intention',
+    'focus.noIntent': "You didn't add an intention for this round.",
+    'focus.late': "You joined later; you're part of the rest of this round.",
+    'focus.leave': 'Leave the round',
+    'focus.leaveNote': 'Only your participation ends; the room timer keeps going.',
+    'left.label': 'You left the round',
+    'left.saved': '{time} of focus saved so far.',
+    'left.note': 'The round continues for everyone. Chat opens when the break starts.',
+    'left.rejoin': 'Rejoin the round',
+    'summary.label': 'This round',
+    'summary.line': '{time} of focus · {kind}',
+    'summary.noIntent': 'No intention was added for this round.',
+    'summary.complete': 'stayed to the end',
+    'summary.late': 'joined later',
+    'summary.left': 'left the round',
+    'break.noteIn': 'A few minutes away from the screen can feel good.',
+    'break.noteOut': 'The room is on break and chat is open to everyone. When the break ends, anyone can start the next round.',
+
+    'phase.waiting': 'Waiting',
+    'phase.focus': 'Focus',
+    'phase.break': 'Break',
+    'phase.detailFocus': '· {n} min round',
+    'phase.detailBreak': '· {n} min',
+    'announce.focus': 'Focus started · {n} min',
+    'announce.break': 'Focus is over · Break started, chat is open',
+    'announce.waiting': 'Break is over · The room is waiting',
+    'meta.waiting': 'Waiting for a new round · Next shared round {time}',
+    'meta.break': 'Back to waiting at {time}',
+    'meta.focus': 'Break starts at {time}',
+    'meta.focusOut': 'The room round is on · Break starts at {time}',
+
+    'status.waiting': 'Waiting',
+    'status.focus': 'Focusing',
+    'status.break': 'On break',
+    'status.left': 'Left the round',
+    'status.none': 'Not joined yet',
+    'mystatus.left': 'You left the round',
+    'mystatus.none': "You haven't joined yet",
+
+    'reward.xp': '+{n} XP · +{n} Leaves',
+    'reward.xp.one': '+1 XP · +1 Leaf',
+    'reward.steps': 'Your garden grew {n} steps',
+    'reward.steps.one': 'Your garden grew 1 step',
+    'reward.carry': 'Your minutes count toward the next growth',
+    'reward.levelGarden': 'Level {n} · a new bed opened in your garden',
+    'reward.level': 'Level {n}',
+    'stats.level': 'Level {n}',
+    'stats.leaves': '{n} Leaves',
+    'stats.leaves.one': '1 Leaf',
+    'stats.streak': 'Streak: {n} days',
+    'stats.streak.one': 'Streak: 1 day',
+    'garden.caption': 'Your garden: {n} plants · Every {m} minutes of focus grows a plant one step. Plants never wilt.',
+    'garden.caption.one': 'Your garden: 1 plant · Every {m} minutes of focus grows a plant one step. Plants never wilt.',
+    'stage.0': '{n} empty beds',
+    'stage.0.one': '1 empty bed',
+    'stage.1': '{n} seeds',
+    'stage.1.one': '1 seed',
+    'stage.2': '{n} sprouts',
+    'stage.2.one': '1 sprout',
+    'stage.3': '{n} young plants',
+    'stage.3.one': '1 young plant',
+    'stage.4': '{n} flowers',
+    'stage.4.one': '1 flower',
+    'stageName.1': 'seed',
+    'stageName.2': 'sprout',
+    'stageName.3': 'young plant',
+    'stageName.4': 'flower',
+
+    'people.title': 'In the room',
+    'people.count': '{n} people',
+    'people.count.one': '1 person',
+    'intent.sr': 'Intention: ',
+    'intent.emptyOther': 'No intention shared',
+    'intent.emptyMine': 'Your intention shows here',
+    'intent.emptyAdded': 'No intention added',
+    'board.title': 'Shared garden',
+    'board.reset': 'Starts fresh on Monday',
+    'board.text': 'This week the room has focused {n} min together.',
+    'board.empty': "This week's first round isn't finished yet.",
+    'board.fine': "Everyone's focus minutes add up here together. Nobody is ranked.",
+
+    'chat.title': 'Chat',
+    'chat.open': 'Open',
+    'chat.closed': 'Closed',
+    'chat.msgLabel': 'Message',
+    'chat.send': 'Send',
+    'chat.placeholder': 'Write a message…',
+    'chat.placeholderClosed': 'Chat opens during the break',
+    'chat.focusTitle': 'Chat is closed during focus',
+    'chat.focusText': 'So nobody gets interrupted. It opens for everyone when the break starts ({time}).',
+    'chat.waitTitle': 'Chat opens during the break',
+    'chat.waitText': 'Chat is closed for everyone while waiting and during focus.',
+
+    'emote.aria': 'Reactions',
+    'emote.wave': 'Wave',
+    'emote.heart': 'Heart',
+    'emote.coffee': 'Coffee',
+    'emote.closed': 'Reactions open during the break and while waiting.',
+
+    'profile.eyebrow': 'Profile',
+    'profile.title': 'Choose your avatar',
+    'profile.lede': 'People in the room see you with this avatar. You can change it any time.',
+    'profile.options': 'Avatar options',
+    'profile.preview': 'This is how you appear in the room',
+    'profile.selected': 'Selected avatar: {label}',
+    'profile.aria': 'Profile and settings · {name}, {label}',
+    'profile.done': 'Back to the room',
+    'settings.title': 'Game elements',
+    'settings.fine': "Turning something off only hides it from your screen; nothing you've collected is lost.",
+    'settings.garden': 'Garden',
+    'settings.xp': 'Level, XP and Leaves',
+    'settings.streak': 'Streak',
+    'settings.board': 'Shared garden',
+    'settings.boardNote': 'Time everyone in the room gathered together this week.',
+
+    'leave.title': 'Leave this round?',
+    'leave.bodyA': 'Your',
+    'leave.bodyB': 'of focus so far will be saved. The room timer keeps going for everyone.',
+    'leave.stay': 'Stay',
+    'leave.leave': 'Leave the round',
+
+    'toast.error': 'Something went wrong with the connection. Could you try again?',
+    'toast.msgFail': "The message wasn't sent. Your text is still here; chat is only open during the break.",
+    'time.short': 'under 1 min',
+    'time.min': '{n} min',
+    'timer.aria': '{m} minutes {s} seconds',
+
+    'scene.desc': 'Garden scene, {phase}. {who}.{plants}',
+    'scene.meFocus': 'You ({name}) are working at your own bed',
+    'scene.meStatus': 'You ({name}): {status}',
+    'scene.plants': ' Your garden has {list}.',
+    'hint.focusIn': 'Your character is working in your garden. Walking around opens in the break.',
+    'hint.focusOut': 'The room is focusing. Walking around opens in the break.',
+    'hint.roamGarden': 'Tap somewhere or use the arrow keys / WASD to walk. Tap an empty bed, or press E while standing on one, to plant a seed.',
+    'hint.roam': 'Tap somewhere or use the arrow keys / WASD to walk.',
+    'hint.planted': 'Seed planted.',
+    'hint.occupied': 'This bed already has a {name}.',
+  },
+};
+
+// Avatar açıklamaları ekran okuyucular için; Türkçeleri avatars.js içinde.
+const AVATAR_LABELS_EN = {
+  gozluklu: 'Short black hair and round glasses',
+  kivircik: 'Curly black hair and a gold earring',
+  kakullu: 'Brown hair with bangs and a leaf clip',
+  bereli: 'Green beanie',
+  cilli: 'Long red hair and freckles',
+  kulaklikli: 'Bun and headphones',
+  dalgali: 'Wavy grey hair and glasses',
+  'iki-topuz': 'Two honey-colored buns',
+};
+
+const LANG_KEY = 'pomodoors.lang';
+
+let lang = (() => {
+  try {
+    const saved = localStorage.getItem(LANG_KEY);
+    if (saved === 'tr' || saved === 'en') return saved;
+  } catch {
+    // Depolama kapalıysa tarayıcı diline bakılır.
+  }
+  return (navigator.language || 'tr').toLowerCase().startsWith('tr') ? 'tr' : 'en';
+})();
+
+function t(key, vars = {}) {
+  const table = I18N[lang];
+  const template = (vars.n === 1 && table[`${key}.one`]) || table[key] || I18N.tr[key] || key;
+  return template.replace(/\{(\w+)\}/g, (_, name) => (name in vars ? vars[name] : `{${name}}`));
+}
+
+function avatarLabel(id) {
+  return lang === 'en' ? AVATAR_LABELS_EN[id] : AVATAR_BY_ID[id].label;
+}
+
+function applyStaticText() {
+  document.documentElement.lang = lang;
+  document.title = t('doc.title');
+  document.querySelectorAll('[data-i18n]').forEach((node) => { node.textContent = t(node.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach((node) => { node.placeholder = t(node.dataset.i18nPlaceholder); });
+  document.querySelectorAll('[data-i18n-aria]').forEach((node) => { node.setAttribute('aria-label', t(node.dataset.i18nAria)); });
+  document.querySelectorAll('[data-i18n-title]').forEach((node) => { node.title = t(node.dataset.i18nTitle); });
+}
+
+function setLang(next) {
+  lang = next;
+  try {
+    localStorage.setItem(LANG_KEY, lang);
+  } catch {
+    // Tercih bu oturumla sınırlı kalır.
+  }
+  applyStaticText();
+}

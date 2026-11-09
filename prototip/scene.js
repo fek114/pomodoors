@@ -4,6 +4,7 @@
 // Odakta sahne sakindir: karakterler kendi tarhlarında çalışır, bitkiler dakikalar geçtikçe büyür.
 // Bekleme ve molada kullanıcı kendi karakteriyle dolaşabilir ve boş tarhlara tohum ekebilir.
 // app.js'teki state, game, people, messages gibi değerleri çalışma anında okur.
+// Diğer katılımcılar sırayla dört küçük tarha yerleşir; molada konumları net.js ile paylaşılır.
 
 const scene = (() => {
   const T = 16;
@@ -53,20 +54,14 @@ const scene = (() => {
   const FENCE_FROM = 2;
 
   const MY_PLOT = { x: 2, y: 8, cols: 5, rows: 3 };
-  const OTHER_PLOTS = {
-    deniz: { x: 8, y: 8, plants: [4, 3, 4, 2] },
-    ece: { x: 11, y: 8, plants: [2, 3, 1, 3] },
-    ipek: { x: 14, y: 8, plants: [4, 4, 3, 3] },
-    arda: { x: 17, y: 8, plants: [1, 2, 0, 1] },
-  };
+  const OTHER_PLOT_X = [8, 11, 14, 17];
+  const OTHER_PLOT_Y = 8;
 
-  // Karakterlerin ayak konumları (karo biriminde)
-  const SPOTS = {
-    plot: { me: [4.5, 7.9], deniz: [9, 7.9], ece: [12, 7.9], ipek: [15, 7.9], arda: [18, 7.9] },
-    gather: { me: [7.5, 4.9], deniz: [16.8, 5.3], ece: [10.4, 5.5], ipek: [12.6, 5.4], arda: [9, 4.9] },
-    cabin: { me: [6.4, 4.8], arda: [8.6, 4.8] },
-    path: { me: [7.5, 5.7] },
-  };
+  // Ayak konumları (karo biriminde). Diğerleri odadaki sıralarına göre yerleşir.
+  const MY_SPOTS = { plot: [4.5, 7.9], gather: [7.5, 4.9], cabin: [6.4, 4.8], path: [7.5, 5.7] };
+  const OTHER_PLOT_SPOTS = OTHER_PLOT_X.map((x) => [x + 1, 7.9]);
+  const GATHER_SPOTS = [[9, 4.9], [10.4, 5.5], [12.6, 5.4], [16.8, 5.3], [9.8, 6.6], [12, 6.6], [14.2, 6.6], [16.4, 6.6]];
+  const extraSpot = (i) => [3 + (i % 10) * 1.6, 5.4 + Math.floor(i / 10) * 0.5];
 
   // Karakter sprite'ları. o çizgi, h saç, k ten, e göz, s gömlek, p pantolon, b ayakkabı
   const BODY = {
@@ -116,6 +111,7 @@ const scene = (() => {
   const keys = new Set();
   const actors = {};
   const labelNodes = {};
+  const emotes = {};       // kişi kimliği -> { kind, until }
 
   /* Yardımcılar */
 
@@ -397,8 +393,9 @@ const scene = (() => {
     if (game.show.garden) {
       garden.slice(0, MY_PLOT.cols * MY_PLOT.rows).forEach((stage, i) => drawPlant(stage, ...plotTile(i)));
     }
-    Object.values(OTHER_PLOTS).forEach(({ x, y, plants }) => {
-      plants.forEach((stage, i) => drawPlant(stage, x + (i % 2), y + Math.floor(i / 2)));
+    people.slice(1, 1 + OTHER_PLOT_X.length).forEach((person, slot) => {
+      (person.garden || []).slice(0, 4).forEach((stage, i) =>
+        drawPlant(stage, OTHER_PLOT_X[slot] + (i % 2), OTHER_PLOT_Y + Math.floor(i / 2)));
     });
   }
 
@@ -420,16 +417,30 @@ const scene = (() => {
 
   function targetFor(person) {
     const status = statusOf(person);
-    const id = person.id;
-    if (status === 'focus') return SPOTS.plot[id];
-    if (status === 'left') return SPOTS.cabin[id] || SPOTS.cabin.arda;
-    if (status === 'none') return SPOTS.path.me;
-    return SPOTS.gather[id];
+    if (person === me) {
+      if (status === 'focus') return MY_SPOTS.plot;
+      if (status === 'left') return MY_SPOTS.cabin;
+      if (status === 'none') return MY_SPOTS.path;
+      return MY_SPOTS.gather;
+    }
+    const slot = people.indexOf(person) - 1;
+    if (status === 'focus') return OTHER_PLOT_SPOTS[slot] || extraSpot(slot);
+    if (status === 'left' || status === 'none') return [8.6 + (slot % 4) * 0.7, 4.8 + Math.floor(slot / 4) * 0.4];
+    // Molada ve beklemede diğerleri paylaştıkları konuma yürür.
+    if (person.pos) return [person.pos.x, person.pos.y];
+    return GATHER_SPOTS[slot] || extraSpot(slot);
   }
 
   const canRoam = () => state.phase !== 'focus' && state.view === 'room';
 
   function updateActors(dt) {
+    Object.keys(actors).forEach((id) => {
+      if (!personById(id)) {
+        delete actors[id];
+        labelNodes[id]?.remove();
+        delete labelNodes[id];
+      }
+    });
     people.forEach((person) => {
       const target = targetFor(person);
       let actor = actors[person.id];
@@ -438,7 +449,13 @@ const scene = (() => {
         actors[person.id] = actor;
       }
       if (person === me && canRoam()) {
+        const wasMoving = actor.moving;
         moveByKeys(actor, dt);
+        if (actor.moving) net.sendMove({ x: actor.x, y: actor.y, dir: actor.dir, flip: actor.flip });
+        else if (wasMoving) {
+          net.sendMove({ x: actor.x, y: actor.y, dir: actor.dir, flip: actor.flip }, true);
+          trackPresence(); // sonradan gelenler de son konumu görsün
+        }
         return;
       }
       if (person === me) {
@@ -456,7 +473,7 @@ const scene = (() => {
         actor.flip = false;
         return;
       }
-      const stepLen = Math.min(dist, NPC_SPEED * dt);
+      const stepLen = Math.min(dist, (person.pos ? SPEED * 1.2 : NPC_SPEED) * dt);
       actor.x += (dx / dist) * stepLen;
       actor.y += (dy / dist) * stepLen;
       actor.moving = true;
@@ -576,11 +593,20 @@ const scene = (() => {
       if (!node) {
         node = document.createElement('div');
         node.className = 'scene-tag';
-        node.innerHTML = '<span class="scene-bubble" hidden></span><span class="scene-name"></span>';
+        node.innerHTML = '<span class="scene-emote" hidden></span><span class="scene-bubble" hidden></span><span class="scene-name"></span>';
         labels.append(node);
         labelNodes[person.id] = node;
       }
       node.querySelector('.scene-name').textContent = person.name;
+      const emoteNode = node.querySelector('.scene-emote');
+      const emote = emotes[person.id];
+      const showEmoteNow = emote && emote.until > clock;
+      if (showEmoteNow && emoteNode.dataset.kind !== emote.kind) {
+        emoteNode.innerHTML = pixelIcon(emote.kind);
+        emoteNode.dataset.kind = emote.kind;
+      }
+      emoteNode.hidden = !showEmoteNow;
+      if (!showEmoteNow) emoteNode.dataset.kind = '';
       const bubble = node.querySelector('.scene-bubble');
       const text = person.id === speaker ? lastMessageBy(person.id) : '';
       bubble.hidden = !text;
@@ -595,32 +621,32 @@ const scene = (() => {
     const who = people.map((person) => {
       const status = statusOf(person);
       if (person === me) {
-        if (status === 'focus') return 'Sen kendi tarhında çalışıyorsun';
-        return `Sen: ${MY_STATUS_LABELS[status]}`;
+        if (status === 'focus') return t('scene.meFocus', { name: person.name });
+        return t('scene.meStatus', { name: person.name, status: statusLabel(status, true) });
       }
-      return `${person.name}: ${STATUS_LABELS[status]}`;
+      return `${person.name}: ${statusLabel(status)}`;
     }).join('. ');
     let plants = '';
     if (game.show.garden) {
       const parts = [];
       for (let stage = MAX_STAGE; stage >= 0; stage -= 1) {
         const count = garden.filter((value) => value === stage).length;
-        if (count) parts.push(`${count} ${STAGE_NAMES[stage]}`);
+        if (count) parts.push(t(`stage.${stage}`, { n: count }));
       }
-      plants = ` Bahçende ${parts.join(', ')} var.`;
+      plants = t('scene.plants', { list: parts.join(', ') });
     }
-    return `Bahçe sahnesi, ${PHASE_NAMES[state.phase]}. ${who}.${plants}`;
+    return t('scene.desc', { phase: t(`phase.${state.phase}`), who, plants });
   }
 
   function baseHint() {
     if (state.phase === 'focus') {
       return state.participation === 'in'
-        ? 'Karakterin bahçende çalışıyor. Dolaşmak molada açılır.'
-        : 'Oda odakta. Dolaşmak molada açılır.';
+        ? t('hint.focusIn')
+        : t('hint.focusOut');
     }
     return game.show.garden
-      ? 'Bir yere dokun ya da ok tuşları / WASD ile dolaş. Boş bir tarha dokunursan ya da üstündeyken E\'ye basarsan tohum ekersin.'
-      : 'Bir yere dokun ya da ok tuşları / WASD ile dolaş.';
+      ? t('hint.roamGarden')
+      : t('hint.roam');
   }
 
   function updateText(garden) {
@@ -640,7 +666,7 @@ const scene = (() => {
 
   function plantHere() {
     if (!canRoam() || !game.show.garden) return;
-    const actor = actors.me;
+    const actor = actors[me.id];
     const tx = Math.floor(actor.x);
     const ty = Math.floor(actor.y - 0.1);
     const col = tx - MY_PLOT.x;
@@ -649,12 +675,11 @@ const scene = (() => {
     const index = row * MY_PLOT.cols + col;
     if (index >= game.garden.length) return;
     if (game.garden[index] !== 0) {
-      showHint(`Bu tarhta ${STAGE_NAMES[game.garden[index]]} var.`);
+      showHint(t('hint.occupied', { name: t(`stageName.${game.garden[index]}`) }));
       return;
     }
-    game.garden[index] = 1;
-    showHint('Tohum ekildi.');
-    render();
+    showHint(t('hint.planted'));
+    onPlantSeed(index);
   }
 
   function showHint(text) {
@@ -744,7 +769,8 @@ const scene = (() => {
     // Dokunma ya da tıklama: karakter o noktaya yürür; boş bir tarha dokunulduysa orada tohum eker.
     canvas.addEventListener('pointerdown', (event) => {
       canvas.focus();
-      if (!canRoam() || !actors.me) return;
+      const mine = actors[me.id];
+      if (!canRoam() || !mine) return;
       const box = canvas.getBoundingClientRect();
       const x = ((event.clientX - box.left) / box.width) * COLS;
       const y = ((event.clientY - box.top) / box.height) * ROWS;
@@ -755,7 +781,7 @@ const scene = (() => {
       const onPlot = col >= 0 && col < MY_PLOT.cols && row >= 0 && row < MY_PLOT.rows;
       const index = row * MY_PLOT.cols + col;
       const plant = onPlot && game.show.garden && game.garden[index] === 0;
-      actors.me.goal = onPlot ? [tx + 0.5, ty + 0.75, plant] : [x, y + 0.3, false];
+      mine.goal = onPlot ? [tx + 0.5, ty + 0.75, plant] : [x, y + 0.3, false];
     });
 
     new ResizeObserver(fit).observe(wrap);
@@ -763,5 +789,17 @@ const scene = (() => {
     requestAnimationFrame(frame);
   }
 
-  return { init };
+  // Kullanıcının son konumu; presence ile paylaşılır.
+  function myPosition() {
+    const actor = actors[me.id];
+    if (!actor || !actor.roamed) return null;
+    return { x: Math.round(actor.x * 10) / 10, y: Math.round(actor.y * 10) / 10 };
+  }
+
+  // Karakterin üstünde kısa bir piksel tepki (el sallama, kalp, kahve); 3 saniye görünür.
+  function showEmote(id, kind) {
+    emotes[id] = { kind, until: clock + 3 };
+  }
+
+  return { init, myPosition, showEmote };
 })();
