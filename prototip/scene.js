@@ -62,6 +62,25 @@ const scene = (() => {
   // Ayak konumları (karo biriminde). Diğerleri odadaki sıralarına göre yerleşir.
   const MY_SPOTS = { plot: [4.5, 7.9], gather: [7.5, 4.9], cabin: [6.4, 4.8], path: [7.5, 5.7] };
   const OTHER_PLOT_SPOTS = OTHER_PLOT_X.map((x) => [x + 1, 7.9]);
+
+  // Bahçe sakinleri: odada her zaman bulunan iki karakter. Gerçek kullanıcı değiller; katılımcı
+  // listesinde görünmezler, sahnede etiketleri ayrı biçimdedir. Odakta ortak ağacın yanında çalışır,
+  // molada ve beklemede yavaşça dolaşır, ara sıra el sallarlar.
+  const RESIDENTS = [
+    {
+      id: 'resident-fatih', name: 'Fatih', resident: true, status: 'focus',
+      look: { skin: 2, hair: 0, shirt: 3, style: 0 },
+      work: [12.7, 2.8],
+      wander: [[12.4, 4.7], [15.6, 6.6], [13.4, 6.6], [17.4, 5.2]],
+    },
+    {
+      id: 'resident-melis', name: 'Melis', resident: true, status: 'focus',
+      look: { skin: 1, hair: 2, shirt: 5, style: 1 },
+      work: [10.6, 2.6],
+      wander: [[10.4, 4.8], [8.6, 6.6], [11.4, 6.6], [6.4, 6.6]],
+    },
+  ];
+  const everyone = () => [...people, ...RESIDENTS];
   const GATHER_SPOTS = [[9, 4.9], [10.4, 5.5], [12.6, 5.4], [16.8, 5.3], [9.8, 6.6], [12, 6.6], [14.2, 6.6], [16.4, 6.6]];
   const extraSpot = (i) => [3 + (i % 10) * 1.6, 5.4 + Math.floor(i / 10) * 0.5];
 
@@ -434,7 +453,15 @@ const scene = (() => {
 
   /* Karakterler */
 
+  function residentTarget(resident, index) {
+    if (state.phase === 'focus') return resident.work;
+    // Her 14 saniyede bir sıradaki noktaya yürür; iki sakin farklı zamanlarda hareket eder.
+    const step = Math.floor((clock + index * 7) / 14);
+    return resident.wander[step % resident.wander.length];
+  }
+
   function targetFor(person) {
+    if (person.resident) return residentTarget(person, RESIDENTS.indexOf(person));
     const status = statusOf(person);
     if (person === me) {
       if (status === 'focus') return MY_SPOTS.plot;
@@ -454,13 +481,13 @@ const scene = (() => {
 
   function updateActors(dt) {
     Object.keys(actors).forEach((id) => {
-      if (!personById(id)) {
+      if (!personById(id) && !RESIDENTS.some((resident) => resident.id === id)) {
         delete actors[id];
         labelNodes[id]?.remove();
         delete labelNodes[id];
       }
     });
-    people.forEach((person) => {
+    everyone().forEach((person) => {
       const target = targetFor(person);
       let actor = actors[person.id];
       if (!actor) {
@@ -606,13 +633,13 @@ const scene = (() => {
     // Ölçek her karede canvas'ın gerçek boyutundan okunur; yeniden boyutlamada etiketler kaymaz.
     const shown = canvas.clientWidth / W || scale;
     labels.style.left = `${canvas.offsetLeft}px`;
-    people.forEach((person) => {
+    everyone().forEach((person) => {
       const actor = actors[person.id];
       if (!actor) return;
       let node = labelNodes[person.id];
       if (!node) {
         node = document.createElement('div');
-        node.className = 'scene-tag';
+        node.className = person.resident ? 'scene-tag is-resident' : 'scene-tag';
         node.innerHTML = '<span class="scene-emote" hidden></span><span class="scene-bubble" hidden></span><span class="scene-name"></span>';
         labels.append(node);
         labelNodes[person.id] = node;
@@ -655,7 +682,7 @@ const scene = (() => {
       }
       plants = t('scene.plants', { list: parts.join(', ') });
     }
-    return t('scene.desc', { phase: t(`phase.${state.phase}`), who, plants });
+    return `${t('scene.desc', { phase: t(`phase.${state.phase}`), who, plants })} ${t('scene.residents')}`;
   }
 
   function baseHint() {
@@ -726,8 +753,9 @@ const scene = (() => {
     ctx.drawImage(staticLayer, 0, 0);
     const garden = visibleGarden();
     drawPlants(garden);
-    people
+    everyone()
       .map((person) => [person, actors[person.id]])
+      .filter(([, actor]) => actor)
       .sort((a, b) => a[1].y - b[1].y)
       .forEach(([person, actor]) => drawCharacter(person, actor));
 
@@ -741,6 +769,7 @@ const scene = (() => {
       });
     }
 
+    residentEmotes();
     updateLabels();
     updateText(garden);
     requestAnimationFrame(frame);
@@ -833,6 +862,15 @@ const scene = (() => {
     const actor = actors[me.id];
     if (!actor || !actor.roamed) return null;
     return { x: Math.round(actor.x * 10) / 10, y: Math.round(actor.y * 10) / 10 };
+  }
+
+  // Sakinler molada ara sıra, birbirinden farklı zamanlarda kısa bir tepki verir.
+  let nextResidentEmote = 8;
+  function residentEmotes() {
+    if (state.phase === 'focus' || clock < nextResidentEmote) return;
+    const resident = RESIDENTS[Math.floor(Math.random() * RESIDENTS.length)];
+    showEmote(resident.id, ['wave', 'coffee', 'heart'][Math.floor(Math.random() * 3)]);
+    nextResidentEmote = clock + 18 + Math.random() * 20;
   }
 
   // Karakterin üstünde kısa bir piksel tepki (el sallama, kalp, kahve); 3 saniye görünür.

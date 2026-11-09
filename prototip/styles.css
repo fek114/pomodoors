@@ -617,6 +617,7 @@ body[data-phase="break"] .hud .eyebrow-dot { box-shadow: inset 0 0 0 2px #A6D17F
   font-size: 12px;
   line-height: 1.3;
 }
+.scene-tag.is-resident .scene-name { background: rgba(107, 69, 38, .82); font-style: italic; }
 .scene-bubble {
   max-width: 180px;
   padding: 4px 8px;

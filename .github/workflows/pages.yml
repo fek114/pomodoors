@@ -1,8 +1,10 @@
 # PomoDoors ön yüzünü (prototip/) GitHub Pages'e yayınlar.
-# Şimdilik yalnızca elle çalıştırılır; Pages açıldıktan sonra PomoDoors dalına her push'ta da çalışabilir.
+# main dalına her push'ta ve elle çalıştırıldığında yayınlar.
 name: Pages
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:

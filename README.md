@@ -220,7 +220,8 @@ Kurulum, paket yükleme ya da derleme adımı yok. Supabase istemcisi (supabase-
 
 - Tablolar: `profiles`, `rooms` (tek ortak oda), `participations`, `messages`. RLS açık; kullanıcı XP, Yaprak ve bahçeyi kendisi yazamaz.
 - Fonksiyonlar: `room_slot`, `room_phase`, `set_room_timing` (yalnızca test modunda), `join_turn`, `leave_turn`, `claim_reward`, `buy_seed`, `plant_seed`, `room_week_minutes`.
-- Yayın: `.github/workflows/pages.yml` ön yüzü GitHub Pages'e çıkarır; şimdilik elle tetiklenir.
+- Yayın: `.github/workflows/pages.yml` ön yüzü (`prototip/`) `main` dalına her push'ta GitHub Pages'e çıkarır.
+- Bahçe sakinleri: Fatih ve Melis sahnede her zaman bulunan iki karakterdir; gerçek kullanıcı değiller, katılımcı listesinde görünmezler.
 - Ücretsiz Supabase projeleri bir hafta hiç kullanılmazsa duraklatılır; panelden tek tıkla yeniden açılır, veri silinmez.
 
 ## Ajan yönergeleri
