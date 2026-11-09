@@ -869,7 +869,9 @@ const scene = (() => {
   function residentEmotes() {
     if (state.phase === 'focus' || clock < nextResidentEmote) return;
     const resident = RESIDENTS[Math.floor(Math.random() * RESIDENTS.length)];
-    showEmote(resident.id, ['wave', 'coffee', 'heart'][Math.floor(Math.random() * 3)]);
+    const kind = ['wave', 'coffee', 'heart'][Math.floor(Math.random() * 3)];
+    showEmote(resident.id, kind);
+    if (typeof onResidentEmote === 'function') onResidentEmote(resident.name, kind);
     nextResidentEmote = clock + 18 + Math.random() * 20;
   }
 

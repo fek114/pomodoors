@@ -79,6 +79,23 @@
       <div class="scene-wrap" id="sceneWrap">
         <canvas class="scene" id="scene" width="320" height="192" tabindex="0" role="img" data-i18n-aria="scene.aria"></canvas>
         <div class="scene-labels" id="sceneLabels" aria-hidden="true"></div>
+        <section class="scene-chat" id="chatPanel" aria-labelledby="chatTitle">
+          <div class="chat-head">
+            <h2 id="chatTitle" data-i18n="chat.title"></h2>
+            <span class="chat-state" id="chatState"></span>
+            <span class="chat-unread" id="chatUnread" hidden></span>
+            <button class="chat-toggle" id="chatToggle" type="button" aria-expanded="true" aria-controls="chatBody"></button>
+          </div>
+          <div class="chat-body" id="chatBody">
+            <ol class="feed" id="messages" aria-live="polite"></ol>
+            <p class="chat-locked" id="chatLocked"></p>
+            <form class="composer" id="composer">
+              <label class="visually-hidden" for="msgInput" data-i18n="chat.msgLabel"></label>
+              <input class="text-input" id="msgInput" type="text" maxlength="280" autocomplete="off" disabled>
+              <button class="btn btn-primary btn-small" id="sendBtn" type="submit" data-i18n="chat.send" disabled></button>
+            </form>
+          </div>
+        </section>
       </div>
       <div class="scene-foot">
         <div class="emotes" id="emotes" role="group" data-i18n-aria="emote.aria">
@@ -197,32 +214,6 @@
         <p class="fine" data-i18n="seeds.fine"></p>
       </section>
 
-      <section class="chat card" aria-labelledby="chatTitle">
-        <div class="section-head">
-          <h2 id="chatTitle" data-i18n="chat.title"></h2>
-          <span class="chat-state" id="chatState"></span>
-        </div>
-        <div class="chat-locked" id="chatLocked">
-          <!-- Durum illüstrasyonu: kilitli konuşma balonu -->
-          <svg class="illus" viewBox="0 0 72 54" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 8h34a7 7 0 0 1 7 7v13a7 7 0 0 1-7 7H27l-9 8v-8h-6a7 7 0 0 1-7-7V15a7 7 0 0 1 7-7z"/>
-            <path d="M15 18h22M15 25h14" opacity=".55"/>
-            <g class="illus-accent">
-              <rect class="illus-surface" x="46" y="30" width="18" height="14" rx="3"/>
-              <path d="M50.5 30v-3.5a4.5 4.5 0 0 1 9 0V30"/>
-              <path d="M55 35.5v3"/>
-            </g>
-          </svg>
-          <p class="locked-title" id="lockedTitle"></p>
-          <p class="locked-text" id="lockedText"></p>
-        </div>
-        <ol class="messages" id="messages" hidden></ol>
-        <form class="composer" id="composer">
-          <label class="visually-hidden" for="msgInput" data-i18n="chat.msgLabel"></label>
-          <input class="text-input" id="msgInput" type="text" maxlength="280" autocomplete="off" disabled>
-          <button class="btn btn-primary btn-small" id="sendBtn" type="submit" data-i18n="chat.send" disabled></button>
-        </form>
-      </section>
     </aside>
   </main>
 

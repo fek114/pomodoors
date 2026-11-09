@@ -140,6 +140,7 @@ Oyun öğeleri kişiye eşlik etmek için var; baskı kurmak, cezalandırmak ya 
 - **Katılımcı listesi:** avatar, ad, niyet ve durum ("Beklemede", "Odakta", "Molada", "Turdan ayrıldı", "Henüz katılmadı"). Durumlar metin ve ikonla gösterilir.
 - **Profil / karakter düzenleyici:** ten, saç rengi, saç stili ve kıyafet; seçim her yerde hemen görünür.
 - **Giriş:** tek alan, "Takma adın". Arka planda Supabase anonim oturumu açılır; profil ve bahçe o tarayıcıda hatırlanır.
+- **Sohbet paneli:** sahnenin sağ üstünde, oyunlardaki gibi yarı saydam bir panel (telefonda sahnenin altında). Mesajların yanında odaya gelenler, ayrılanlar, tepkiler ve aşama değişimleri kısa satırlar olarak akar. Molada Enter ile yazılır, Esc ile sahneye dönülür; panel küçültülebilir ve küçükken yeni mesaj sayısını gösterir. Mesaj göndermek yalnızca molada açıktır.
 - **Gerçek zamanlı oda:** kimin odada olduğu (presence), molada karakter konumları ve tepkiler (broadcast), tur başlangıcı ve yeni mesajlar (veritabanı değişiklikleri).
 - **İki dil:** üst bardaki TR / EN düğmesi. Tüm metinler `i18n.js` içinde.
 - **Görünüm:** masaüstü ve mobil genişliklere uyum, açık ve koyu tema.

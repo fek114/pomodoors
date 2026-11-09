@@ -185,8 +185,10 @@ const els = {
   peopleCount: $('peopleCount'),
   chatState: $('chatState'),
   chatLocked: $('chatLocked'),
-  lockedTitle: $('lockedTitle'),
-  lockedText: $('lockedText'),
+  chatPanel: $('chatPanel'),
+  chatBody: $('chatBody'),
+  chatToggle: $('chatToggle'),
+  chatUnread: $('chatUnread'),
   messages: $('messages'),
   composer: $('composer'),
   msgInput: $('msgInput'),
@@ -364,7 +366,9 @@ async function loadBreak() {
 
 function addMessage(row) {
   if (messages.some((message) => message.id === row.id)) return;
-  messages.push({ id: row.id, author: row.user_id, name: row.nickname, look: row.look, text: row.body });
+  const message = { id: row.id, author: row.user_id, name: row.nickname, look: row.look, text: row.body };
+  messages.push(message);
+  pushFeed({ kind: 'message', id: `m-${row.id}`, name: message.name, look: message.look, text: message.text });
 }
 
 function applyProfile(profile) {
@@ -864,37 +868,103 @@ function renderPeople() {
   els.peopleList.replaceChildren(...people.map(personRow));
 }
 
-function messageRow({ name, look, text }) {
-  const item = el('li', 'message');
-  item.innerHTML = avatarMarkup(look);
-  const body = el('div', 'message-body');
-  body.append(el('p', 'message-name', name), el('p', 'message-text', text));
-  item.append(body);
+/* Sohbet: sahnenin köşesinde, oyunlardaki gibi bir akış. Mesajlar yalnızca molada gönderilir;
+   odaya gelenler, ayrılanlar, tepkiler ve aşama değişimleri her zaman kısa satırlar olarak akar. */
+
+const FEED_LIMIT = 40;
+const CHAT_KEY = 'pomodoors.chatOpen';
+const feed = [];           // { kind: 'message' | 'event', id?, name, look?, text }
+let chatOpen = true;
+let unread = 0;
+
+function pushFeed(entry) {
+  if (entry.id && feed.some((item) => item.id === entry.id)) return;
+  feed.push(entry);
+  if (feed.length > FEED_LIMIT) feed.splice(0, feed.length - FEED_LIMIT);
+  if (!chatOpen && entry.kind === 'message') unread += 1;
+  renderChat();
+}
+
+const feedEvent = (text) => pushFeed({ kind: 'event', text });
+
+// Bahçe sakinlerinin tepkileri de akışa düşer (scene.js çağırır).
+function onResidentEmote(name, kind) {
+  if (state.phase !== 'focus') feedEvent(t(`feed.emote.${kind}`, { name }));
+}
+
+function feedRow(entry) {
+  if (entry.kind === 'event') return el('li', 'feed-event', entry.text);
+  const item = el('li', 'feed-message');
+  const face = el('span', '');
+  face.innerHTML = avatarMarkup(entry.look);
+  item.append(face.firstElementChild, el('span', 'feed-name', entry.name), el('span', 'feed-text', entry.text));
   return item;
 }
 
 function renderChat() {
-  // Molada sohbet, önceki tura katılıp katılmadığından bağımsız olarak herkese açıktır.
+  // Mesaj göndermek yalnızca molada açık; akış her zaman görünür.
   const open = state.phase === 'break';
   els.chatState.textContent = t(open ? 'chat.open' : 'chat.closed');
   els.chatState.classList.toggle('is-open', open);
   els.chatLocked.hidden = open;
-  els.messages.hidden = !open;
+  els.chatLocked.textContent = state.phase === 'focus'
+    ? t('chat.lockedShort', { time: wallClock(state.endsAt) })
+    : t('chat.waitText');
   // Kapanırken yazılmakta olan metin silinmez; yalnızca gönderim kapanır.
   els.msgInput.disabled = !open;
-  els.msgInput.placeholder = t(open ? 'chat.placeholder' : 'chat.placeholderClosed');
+  els.msgInput.placeholder = t(open ? 'chat.placeholderEnter' : 'chat.placeholderClosed');
   els.sendBtn.disabled = !open || !els.msgInput.value.trim();
 
-  if (open) {
-    els.messages.replaceChildren(...messages.map(messageRow));
-  } else if (state.phase === 'focus') {
-    els.lockedTitle.textContent = t('chat.focusTitle');
-    els.lockedText.textContent = t('chat.focusText', { time: wallClock(state.endsAt) });
-  } else {
-    els.lockedTitle.textContent = t('chat.waitTitle');
-    els.lockedText.textContent = t('chat.waitText');
-  }
+  const atBottom = els.messages.scrollHeight - els.messages.scrollTop - els.messages.clientHeight < 24;
+  els.messages.replaceChildren(...feed.map(feedRow));
+  if (atBottom) els.messages.scrollTop = els.messages.scrollHeight;
+
+  els.chatBody.hidden = !chatOpen;
+  els.chatPanel.classList.toggle('is-collapsed', !chatOpen);
+  els.chatToggle.setAttribute('aria-expanded', String(chatOpen));
+  els.chatToggle.textContent = chatOpen ? '–' : '+';
+  els.chatToggle.setAttribute('aria-label', t(chatOpen ? 'chat.collapse' : 'chat.expand'));
+  els.chatUnread.hidden = chatOpen || !unread;
+  els.chatUnread.textContent = t('chat.unread', { n: unread });
 }
+
+els.chatToggle.addEventListener('click', () => {
+  chatOpen = !chatOpen;
+  if (chatOpen) unread = 0;
+  try {
+    localStorage.setItem(CHAT_KEY, chatOpen ? '1' : '0');
+  } catch {
+    // Tercih bu oturumla sınırlı kalır.
+  }
+  renderChat();
+});
+
+try {
+  chatOpen = localStorage.getItem(CHAT_KEY) !== '0';
+} catch {
+  chatOpen = true;
+}
+
+// Enter: molada yazma alanına geçer (başka bir alanda yazılmıyorsa). Esc: sahneye döner.
+document.addEventListener('keydown', (event) => {
+  if (event.key !== 'Enter' || state.phase !== 'break' || !state.online) return;
+  const target = event.target;
+  if (target.closest('input, textarea, select, button, dialog[open]') || document.querySelector('dialog[open]')) return;
+  event.preventDefault();
+  if (!chatOpen) {
+    chatOpen = true;
+    unread = 0;
+    renderChat();
+  }
+  els.msgInput.focus();
+});
+
+els.msgInput.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') {
+    els.msgInput.blur();
+    document.getElementById('scene').focus();
+  }
+});
 
 function renderProfile() {
   els.meAvatar.innerHTML = avatarMarkup(me.look);
@@ -946,6 +1016,7 @@ let audioCtx;
 
 function announcePhase(phase) {
   els.banner.textContent = t(`announce.${phase}`, { d: durationText(timing.focus) });
+  feedEvent(els.banner.textContent);
   els.banner.classList.add('show');
   clearTimeout(bannerTimer);
   bannerTimer = setTimeout(() => els.banner.classList.remove('show'), 4000);
@@ -1017,6 +1088,7 @@ els.composer.addEventListener('submit', (event) => {
     els.msgInput.value = '';
     renderChat();
     els.messages.scrollTop = els.messages.scrollHeight;
+    els.msgInput.focus();
   }).catch((error) => {
     console.error(error);
     showToast(t('toast.msgFail'));
@@ -1242,6 +1314,8 @@ function restoreAmbient() {
 
 /* Oda bağlantısı */
 
+let presenceReady = false;
+
 function onPresence(presence) {
   const others = Object.values(presence)
     .map((entries) => entries[0])
@@ -1254,7 +1328,13 @@ function onPresence(presence) {
       pos: person.pos || entry.pos || null,
     });
   });
+  const before = new Map(people.slice(1).map((person) => [person.id, person.name]));
   people.splice(1, people.length - 1, ...kept);
+  if (presenceReady) {
+    kept.filter((person) => !before.has(person.id)).forEach((person) => feedEvent(t('feed.joined', { name: person.name })));
+    before.forEach((name, id) => { if (!kept.some((person) => person.id === id)) feedEvent(t('feed.left', { name })); });
+  }
+  presenceReady = true;
   render();
 }
 
@@ -1264,8 +1344,10 @@ function onMove(payload) {
 }
 
 function onEmote(payload) {
-  if (state.phase === 'focus' || !personById(payload.id)) return;
+  const person = personById(payload.id);
+  if (state.phase === 'focus' || !person || !EMOTES.includes(payload.kind)) return;
   scene.showEmote(payload.id, payload.kind);
+  feedEvent(t(`feed.emote.${payload.kind}`, { name: person.name }));
 }
 
 const EMOTES = ['wave', 'heart', 'coffee'];
@@ -1280,6 +1362,7 @@ els.emoteButtons.forEach((button) => {
     lastEmoteAt = now;
     scene.showEmote(me.id, kind);
     net.sendEmote(kind);
+    feedEvent(t(`feed.emote.${kind}`, { name: me.name }));
   });
 });
 
@@ -1325,8 +1408,6 @@ els.devBar.addEventListener('click', async (event) => {
 function onMessage(row) {
   if (state.phase !== 'break') return;
   addMessage(row);
-  renderChat();
-  els.messages.scrollTop = els.messages.scrollHeight;
 }
 
 async function enterRoom(profile) {

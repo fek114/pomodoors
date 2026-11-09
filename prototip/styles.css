@@ -818,6 +818,63 @@ body[data-phase="break"] .hud .eyebrow-dot { box-shadow: inset 0 0 0 2px #A6D17F
 }
 .tour h2 { margin: 4px 0 8px; font-family: var(--pixel); font-size: 24px; font-weight: 500; }
 
+/* Sahne üstü sohbet paneli: sağ üstte, göletin olduğu süs alanında; kullanıcının bahçesini örtmez */
+
+.scene-chat {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  width: min(320px, 42%);
+  max-height: 58%;
+  border: 2px solid #6B4526;
+  border-radius: var(--radius);
+  background: rgba(43, 30, 20, .84);
+  color: #FFF8E8;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, .25);
+}
+.scene-chat.is-collapsed { width: auto; }
+.chat-head { display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 10px; }
+.chat-head h2 { margin: 0; font-family: var(--pixel); font-size: 15px; font-weight: 500; }
+.scene-chat .chat-state { padding: 1px 6px; border: 1px solid rgba(255, 248, 232, .3); border-radius: var(--radius); color: #EAD7B5; font-size: 11.5px; }
+.scene-chat .chat-state.is-open { border-color: transparent; background: #A6D17F; color: #15200F; }
+.chat-unread { padding: 1px 6px; border-radius: var(--radius); background: #E3B458; color: #2B2622; font-size: 11.5px; font-weight: 600; }
+.chat-toggle { margin-left: auto; width: 26px; height: 24px; padding: 0; border: 1px solid rgba(255, 248, 232, .35); border-radius: var(--radius); background: none; color: #FFF8E8; font-family: var(--pixel); }
+.chat-body { display: flex; flex-direction: column; min-height: 0; border-top: 1px solid rgba(255, 248, 232, .15); }
+.chat-body[hidden] { display: none; }
+.feed {
+  display: grid;
+  gap: 4px;
+  max-height: 150px;
+  margin: 0;
+  padding: 8px 10px;
+  overflow-y: auto;
+  list-style: none;
+  font-size: 13px;
+  line-height: 1.4;
+  scrollbar-width: thin;
+}
+.feed-event { color: #CDBFA4; font-style: italic; }
+.feed-message { display: flex; align-items: flex-start; gap: 6px; }
+.feed-message .avatar { width: 18px; height: 18px; margin-top: 1px; }
+.feed-name { flex: none; color: #E3B458; font-weight: 600; }
+.feed-text { min-width: 0; overflow-wrap: anywhere; }
+.scene-chat .chat-locked { margin: 0; padding: 0 10px 6px; color: #CDBFA4; font-size: 12.5px; text-align: left; }
+.scene-chat .composer { display: flex; gap: 6px; margin: 0; padding: 6px 8px 8px; border-top: 1px solid rgba(255, 248, 232, .15); }
+.scene-chat .composer .text-input { min-width: 0; padding: 6px 10px; border-color: rgba(255, 248, 232, .3); background: rgba(255, 248, 232, .08); color: #FFF8E8; font-size: 13.5px; }
+.scene-chat .composer .text-input::placeholder { color: #B9A988; }
+.scene-chat .btn-small { padding: 6px 10px; font-size: 13px; }
+
+@media (max-width: 700px) {
+  .scene-wrap { flex-direction: column; align-items: center; }
+  .scene-chat { position: static; width: 100%; max-height: none; border-width: 2px 0 0; border-radius: 0; box-shadow: none; }
+  .scene-chat.is-collapsed { width: 100%; }
+  .devbar { bottom: 6px; gap: 4px; padding: 6px 8px; font-size: 11px; }
+  .devbar-label { display: none; }
+}
+
 /* Odalar, canlı sayaç, liderlik tablosu */
 
 button.room-name { padding: 2px 8px; border: 1px dashed var(--line-strong); border-radius: var(--radius); background: none; cursor: pointer; }
