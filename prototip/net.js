@@ -65,6 +65,7 @@ const net = (() => {
   api.claimReward = () => check(db.rpc('claim_reward', { p_room: api.room }));
   api.plantSeed = (index, kind) => check(db.rpc('plant_seed', { p_index: index, p_kind: kind, p_room: api.room }));
   api.buySeed = (kind) => check(db.rpc('buy_seed', { p_kind: kind }));
+  api.harvest = (index) => check(db.rpc('harvest', { p_index: index, p_room: api.room }));
   api.weekMinutes = () => check(db.rpc('room_week_minutes', { p_room: api.room }));
 
   api.loadMessages = (sinceIso) => check(db.from('messages').select('*')

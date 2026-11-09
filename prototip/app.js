@@ -57,6 +57,7 @@ const game = {
   garden: [],
   gardenKinds: [],
   seeds: {},            // tohum kesesi: { çeşit: adet }
+  herbarium: {},        // hasat edilen çeşitler: { çeşit: kaç kez }
   show: { garden: true, xp: true, streak: true, board: true, ...readShow() },
 };
 
@@ -220,6 +221,12 @@ const els = {
   hostForm: $('hostForm'),
   hostName: $('hostName'),
   leaderList: $('leaderList'),
+  seasonLine: $('seasonLine'),
+  wishText: $('wishText'),
+  wishFill: $('wishFill'),
+  herbSection: $('herbSection'),
+  herbList: $('herbList'),
+  herbCount: $('herbCount'),
   companionList: $('companionList'),
   devButtons: document.querySelectorAll('[data-timing]'),
   profileDone: $('profileDone'),
@@ -383,6 +390,7 @@ function applyProfile(profile) {
   game.garden = [...profile.garden];
   game.gardenKinds = [...(profile.garden_kinds || [])];
   game.seeds = { ...(profile.seeds || {}) };
+  game.herbarium = { ...(profile.herbarium || {}) };
 }
 
 async function refreshProfile() {
@@ -519,6 +527,7 @@ function render() {
   renderGarden();
   renderBoard();
   renderSeeds();
+  renderHerbarium();
   renderEmotes();
   trackPresence();
 }
@@ -610,14 +619,58 @@ function renderBoard() {
   els.communalText.textContent = game.roomWeekMinutes
     ? t('board.text', { n: game.roomWeekMinutes })
     : t('board.empty');
-  // Ortak ağaç sahnede; burada aşaması ve bir sonraki büyümeye kalan süre yazılır.
+  // Mevsim, haftanın dileği (ortak ağacın bir sonraki aşamasıyla açılacak yer) ve açılmış yerler.
+  els.seasonLine.textContent = t('season.line', { season: t(`season.${currentSeason()}`), seed: t(`seed.${seasonSeed()}`) });
   const stage = scene.sharedTreeStage();
-  const nextAt = scene.SHARED_TREE_STEPS[stage + 1];
-  els.treeText.textContent = nextAt
-    ? t('tree.caption', { stage, n: nextAt - game.roomWeekMinutes })
-    : t('tree.full');
+  const steps = scene.SHARED_TREE_STEPS;
+  const nextAt = steps[stage + 1];
+  if (nextAt) {
+    const from = steps[stage];
+    els.wishText.textContent = t('wish.text', { place: t(`unlock.${stage + 1}`), n: nextAt - game.roomWeekMinutes });
+    els.wishFill.style.width = `${Math.round(((game.roomWeekMinutes - from) / (nextAt - from)) * 100)}%`;
+  } else {
+    els.wishText.textContent = t('wish.done');
+    els.wishFill.style.width = '100%';
+  }
+  const opened = [1, 2, 3, 4, 5].filter((n) => n <= stage).map((n) => t(`unlock.${n}`));
+  els.treeText.hidden = !opened.length;
+  els.treeText.textContent = t('unlock.opened', { list: opened.join(', ') });
   renderLeaders();
   renderCompanions();
+}
+
+/* Herbaryum: hasat edilen çeşitlerin koleksiyonu. Tamamlama baskısı yok. */
+
+function renderHerbarium() {
+  els.herbSection.hidden = !game.show.garden;
+  if (!game.show.garden) return;
+  const found = ALL_KINDS.filter((kind) => (game.herbarium[kind] || 0) > 0).length;
+  els.herbCount.textContent = t('herb.count', { n: found });
+  els.herbList.replaceChildren(...ALL_KINDS.map((kind) => {
+    const times = game.herbarium[kind] || 0;
+    const item = el('li', `herb-card${times ? '' : ' is-unknown'}`);
+    item.innerHTML = `<span class="seed-icon">${seedIcon(kind)}</span>`;
+    item.append(el('span', 'herb-name', times ? t(`seed.${kind}`) : t('herb.unknown')));
+    if (times) item.append(el('span', 'herb-times', t('herb.times', { n: times })));
+    return item;
+  }));
+}
+
+// Molada olgun bitkiyi hasat etme (scene.js çağırır). Tarh boşalır, Yaprak kazanılır, herbaryuma eklenir.
+async function onHarvest(index) {
+  try {
+    const result = await net.harvest(index);
+    game.garden = [...result.garden];
+    game.gardenKinds = [...result.kinds];
+    game.leaves = result.leaves;
+    game.herbarium = { ...result.herbarium };
+    const plant = t(`seed.${result.kind}`);
+    scene.showHint(t('harvest.done', { name: plant, n: result.reward }));
+    feedEvent(t('feed.harvest', { name: me.name, plant }));
+    render();
+  } catch (error) {
+    console.error(error);
+  }
 }
 
 /* Sosyal: haftalık liderlik tablosu ve birlikte çalışılan kişiler */
@@ -773,13 +826,32 @@ els.hostForm.addEventListener('submit', async (event) => {
 /* Tohum kesesi */
 
 const SEED_KINDS = [0, 1, 2, 3, 4];
-const SEED_PRICES = { 0: 0, 1: 15, 2: 30, 3: 20, 4: 40 }; // sunucudaki seed_price ile aynı
+const ALL_KINDS = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+// Sunucudaki seed_price ile aynı. 5-8 mevsim tohumları: 5 kabak, 6 kardelen, 7 gelincik, 8 lavanta.
+const SEED_PRICES = { 0: 0, 1: 15, 2: 30, 3: 20, 4: 40, 5: 25, 6: 25, 7: 25, 8: 25 };
+
+// Haftalık mevsim (sunucudaki current_season ile aynı): 0 sonbahar, 1 kış, 2 ilkbahar, 3 yaz.
+function currentSeason(at = Date.now() + (window.net ? net.offset : 0)) {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul', year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short' })
+    .formatToParts(new Date(at));
+  const get = (type) => parts.find((part) => part.type === type).value;
+  const day = Date.UTC(Number(get('year')), Number(get('month')) - 1, Number(get('day')));
+  const weekday = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].indexOf(get('weekday'));
+  const monday = day - weekday * 86400000;
+  const weeks = Math.round((monday - Date.UTC(2026, 0, 5)) / (7 * 86400000));
+  return ((weeks % 4) + 4) % 4;
+}
+const seasonSeed = () => 5 + currentSeason();
 const SEED_ICONS = {
   0: ['..w.w...', '.wwyww..', '..wyw...', '.ww.ww..', '...g....', '..gg....', '...g....', '........'],
   1: ['.f.f.f..', '.fffff..', '.fffff..', '..fff...', '...g....', '..gg.g..', '...gg...', '........'],
   2: ['.y.yy.y.', 'yyBBBBy.', '.yBBBBy.', 'yyBBBBy.', '.yyyyy..', '...g....', '..ggg...', '........'],
   3: ['..g.g...', '...gg...', '..oooo..', '..ooo...', '..ooo...', '...oo...', '...o....', '........'],
   4: ['...gg...', '..gggg..', '.ffffff.', '.fwfffw.', '.ffffff.', '..fwff..', '...ff...', '........'],
+  5: ['...gg...', '....g...', '.oooooo.', 'ooOooOoo', 'ooOooOoo', 'ooOooOoo', '.oooooo.', '........'],
+  6: ['...g....', '..g.g...', '.w..g...', 'ww..g...', '.w.g....', '...g....', '..ggg...', '........'],
+  7: ['..ff.ff.', '.ffffff.', '.ffkkff.', '.ffffff.', '..ffff..', '....g...', '...gg...', '........'],
+  8: ['.p..p..p', '.p..p..p', 'pp.pp.pp', '.p..p..p', '.g..g..g', '..g.g.g.', '...ggg..', '........'],
 };
 const SEED_ICON_COLORS = {
   0: { w: '#F4F1EA', y: '#E3B458', g: '#4E8F3A' },
@@ -787,6 +859,10 @@ const SEED_ICON_COLORS = {
   2: { y: '#E3B458', B: '#6B4526', g: '#4E8F3A' },
   3: { o: '#E8833A', g: '#4E8F3A' },
   4: { f: '#D9534F', w: '#F4F1EA', g: '#4E8F3A' },
+  5: { o: '#E8833A', O: '#C25E2A', g: '#4E8F3A' },
+  6: { w: '#F7F7F2', g: '#4E8F3A' },
+  7: { f: '#D93A2E', k: '#2B2622', g: '#4E8F3A' },
+  8: { p: '#9B7BC8', g: '#4E8F3A' },
 };
 
 function seedIcon(kind) {
@@ -803,15 +879,20 @@ function seedIcon(kind) {
 function renderSeeds() {
   els.seedsSection.hidden = !game.show.garden;
   if (!game.show.garden) return;
-  els.seedList.replaceChildren(...SEED_KINDS.map((kind) => {
+  const seasonal = seasonSeed();
+  // Bu haftanın mevsim tohumu ve kesede kalmış eski mevsim tohumları da listelenir.
+  const kinds = [...SEED_KINDS, seasonal,
+    ...[5, 6, 7, 8].filter((kind) => kind !== seasonal && (game.seeds[kind] || 0) > 0)];
+  els.seedList.replaceChildren(...kinds.map((kind) => {
     const owned = game.seeds[kind] || 0;
     const row = el('li', 'seed-row');
     const pick = el('label', 'seed-pick');
     pick.innerHTML = `<input type="radio" name="seedKind" value="${kind}"${state.seedKind === kind ? ' checked' : ''}><span class="seed-icon">${seedIcon(kind)}</span>`;
     pick.append(el('span', 'seed-name', t(`seed.${kind}`)));
     const meta = el('span', 'seed-meta', kind === 0 ? t('seeds.free') : t('seeds.owned', { n: owned }));
+    if (kind === seasonal) pick.append(el('span', 'seed-season', t('seeds.season')));
     row.append(pick, meta);
-    if (kind > 0) {
+    if (kind > 0 && (kind < 5 || kind === seasonal)) {
       const buy = el('button', 'btn btn-quiet btn-small seed-buy', t('seeds.buy', { price: SEED_PRICES[kind] }));
       buy.type = 'button';
       buy.dataset.buy = kind;

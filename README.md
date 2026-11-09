@@ -102,6 +102,15 @@ Oyun öğeleri kişiye eşlik etmek için var; baskı kurmak, cezalandırmak ya 
 - Sahnedeki ortak ağaç odanın haftalık toplam dakikasıyla büyür: 0, 60, 200, 500, 1000 ve 2000 dk'da altı aşama; son aşamada çiçek açar. Her pazartesi yeniden başlar.
 - Sahne kullanıcının yerel saatine göre sabah, gündüz, gün batımı, akşam ve gece renklerine geçer; akşam ve gece evin pencereleri yanar. Açık/koyu temadan bağımsızdır.
 
+### Hasat, herbaryum, mevsimler ve açılan yerler
+
+- **Çekirdek döngü:** odaklan → bahçe büyür → molada hasat et → Yaprak ve koleksiyon → yeni tohum → odaklan.
+- **Hasat:** molada olgun bitkiye dokununca (ya da üstündeyken E) hasat edilir; tarh boşalır, çeşide göre Yaprak kazanılır (papatya 3, lale 8, havuç 10, ayçiçeği 14, çilek 18, mevsim tohumları 12). İsteğe bağlıdır; hiçbir bitki kendiliğinden kaybolmaz.
+- **Herbaryum:** hasat edilen her çeşit bir kart olarak koleksiyona girer ve kaç kez yetiştirildiği yazar (9 çeşit). Tamamlama baskısı yoktur.
+- **Haftalık mevsim:** her pazartesi (İstanbul) sırayla sonbahar, kış, ilkbahar, yaz. Sahnenin çim ve ağaç renkleri değişir, kışın kar yağar. Her mevsimin yalnızca o hafta alınabilen bir tohumu vardır: kabak, kardelen, gelincik, lavanta (25 Yaprak). Keseye alınan tohum sonra da ekilebilir.
+- **Açılan yerler ve haftanın dileği:** ortak ağaç odanın haftalık süresiyle büyüdükçe haritada yeni yerler açılır: meydan (60 dk), çeşme (200), sera (500), fener festivali (1000), çiçek tarlası (2000). "Haftanın dileği" sıradaki yeri ve kalan dakikayı gösterir. Her pazartesi yeniden başlar.
+- **Evin içi:** molada ve beklemede evin yeşil kapısından kişisel bir çalışma köşesine girilir (kitaplık, şömine, masa, yatak). İçerideyken diğerleri görünmez; odak başlayınca bahçeye dönülür.
+
 ### Tohum çeşitleri
 
 - Papatya ücretsizdir; lale 15, havuç 20, ayçiçeği 30, çilek 40 Yaprak. Satın alınan tohum kesede durur; molada boş tarha seçilen tohum ekilir.
@@ -227,7 +236,7 @@ Kurulum, paket yükleme ya da derleme adımı yok. Supabase istemcisi (supabase-
 ### Sunucu tarafı
 
 - Tablolar: `profiles`, `rooms` (tek ortak oda), `participations`, `messages`. RLS açık; kullanıcı XP, Yaprak ve bahçeyi kendisi yazamaz.
-- Fonksiyonlar: `room_slot`, `room_phase`, `set_room_timing` (yalnızca test modunda), `create_room`, `week_leaderboard`, `week_companions`, `join_turn`, `leave_turn`, `claim_reward`, `buy_seed`, `plant_seed`, `room_week_minutes`.
+- Fonksiyonlar: `room_slot`, `room_phase`, `set_room_timing` (yalnızca test modunda), `create_room`, `week_leaderboard`, `week_companions`, `current_season`, `harvest`, `join_turn`, `leave_turn`, `claim_reward`, `buy_seed`, `plant_seed`, `room_week_minutes`.
 - Yayın: `.github/workflows/pages.yml` ön yüzü (`prototip/`) `main` dalına her push'ta GitHub Pages'e çıkarır.
 - Bahçe sakinleri: Fatih ve Melis sahnede her zaman bulunan iki karakterdir; gerçek kullanıcı değiller, katılımcı listesinde görünmezler.
 - Ücretsiz Supabase projeleri bir hafta hiç kullanılmazsa duraklatılır; panelden tek tıkla yeniden açılır, veri silinmez.

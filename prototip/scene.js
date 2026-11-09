@@ -30,6 +30,20 @@ const scene = (() => {
     outline: '#2B2622', pants: '#3B4A66', shadow: 'rgba(0, 0, 0, .18)',
   };
 
+  // Haftalık mevsim paletleri (0 sonbahar, 1 kış, 2 ilkbahar, 3 yaz). Bitkiler kendi renklerini korur.
+  const SEASONS = [
+    { grass: '#9AA84A', grassDark: '#83903C', grassLight: '#C2B85A', leaf: '#C9762E', leafDark: '#9C5524', leafLight: '#E8A44A', snow: false },
+    { grass: '#CFD9D3', grassDark: '#B2C2BC', grassLight: '#F4F7F5', leaf: '#5E8C6A', leafDark: '#3E6B4E', leafLight: '#EEF4F2', snow: true },
+    { grass: '#74B84E', grassDark: '#5FA13F', grassLight: '#9CD06A', leaf: '#5E9E46', leafDark: '#3E7A34', leafLight: '#F2B8C6', snow: false },
+    { grass: '#7CB043', grassDark: '#66963A', grassLight: '#A6C85A', leaf: '#4E8F3A', leafDark: '#2F6B2C', leafLight: '#78B455', snow: false },
+  ];
+  let snowy = false;
+  function applySeason(index) {
+    const season = SEASONS[index] || SEASONS[3];
+    snowy = season.snow;
+    Object.assign(C, season);
+  }
+
   // Zemin: G çim, P patika, S sürülmüş toprak, W su
   const GROUND = [
     'GGGGGGGGGGGGGGGGGGGG',
@@ -127,6 +141,9 @@ const scene = (() => {
     const x = tx * T;
     const y = ty * T;
     rect(g, x, y, T, T, C.grass);
+    if (snowy) {
+      for (let i = 0; i < 5; i += 1) rect(g, x + Math.floor(hash(tx, ty, i + 40) * 15), y + Math.floor(hash(tx, ty, i + 50) * 15), 1, 1, '#FFFFFF');
+    }
     for (let i = 0; i < 7; i += 1) {
       const px = Math.floor(hash(tx, ty, i) * 15);
       const py = Math.floor(hash(tx, ty, i + 20) * 14);
@@ -200,6 +217,10 @@ const scene = (() => {
       for (let col = (row % 10 ? 3 : 7); col < w - 2; col += 8) rect(g, x + col, y + row - 4, 1, 4, C.roofDark);
     }
     rect(g, x, y + 34, w, 2, C.roofDark);
+    if (snowy) {
+      rect(g, x + 1, y, w - 2, 7, '#F4F7F5');
+      for (let col = 4; col < w - 4; col += 9) rect(g, x + col, y + 7, 3, 2, '#F4F7F5');
+    }
     // Baca
     rect(g, x + 60, y + 2, 9, 12, C.stone);
     rect(g, x + 60, y + 2, 9, 2, C.stoneDark);
@@ -334,6 +355,107 @@ const scene = (() => {
     rect(g, 15 * T + 5, 2 * T + 6, 1, 1, C.petal);
   }
 
+  /* Ortak ağaçla açılan yerler: 1 meydan, 2 çeşme, 3 sera, 4 fener festivali, 5 çiçek tarlası */
+
+  const PLAZA = { x: 10, y: 4, w: 3, h: 2 };
+  const PLAZA_LANTERNS = [[9, 5], [13, 5]];
+  const FOUNTAIN = { x: 3, y: 4 };
+  const GREENHOUSE = { x: 17, y: 2, w: 3, h: 2 };
+  const FESTIVAL_X = [2, 6, 10, 14, 18];
+
+  function plaza(g) {
+    for (let ty = PLAZA.y; ty < PLAZA.y + PLAZA.h; ty += 1) {
+      for (let tx = PLAZA.x; tx < PLAZA.x + PLAZA.w; tx += 1) {
+        if (tx === BENCH[0] && ty === BENCH[1]) continue;
+        rect(g, tx * T, ty * T, T, T, '#C9C2B2');
+        rect(g, tx * T, ty * T + 7, T, 1, '#A8A090');
+        rect(g, tx * T + (ty % 2 ? 4 : 11), ty * T, 1, 7, '#A8A090');
+        rect(g, tx * T + (ty % 2 ? 11 : 4), ty * T + 8, 1, 8, '#A8A090');
+      }
+    }
+    bench(g, ...BENCH);
+    PLAZA_LANTERNS.forEach(([tx, ty]) => lanternPost(g, tx, ty));
+  }
+
+  function lanternPost(g, tx, ty) {
+    const x = tx * T;
+    const y = ty * T;
+    rect(g, x + 6, y + 13, 5, 2, C.shadow);
+    rect(g, x + 7, y + 4, 2, 10, C.woodDark);
+    rect(g, x + 5, y + 1, 6, 5, C.woodDark);
+    rect(g, x + 6, y + 2, 4, 3, '#F2D27A');
+  }
+
+  function fountain(g) {
+    const x = FOUNTAIN.x * T;
+    const y = FOUNTAIN.y * T;
+    rect(g, x + 2, y + 26, 28, 4, C.shadow);
+    rect(g, x + 1, y + 8, 30, 20, C.stoneDark);
+    rect(g, x + 3, y + 10, 26, 16, C.stone);
+    rect(g, x + 5, y + 12, 22, 12, C.water);
+    rect(g, x + 7, y + 14, 6, 1, C.waterLight);
+    rect(g, x + 18, y + 19, 6, 1, C.waterLight);
+    rect(g, x + 14, y + 2, 4, 14, C.stoneDark);
+    rect(g, x + 13, y + 1, 6, 3, C.stone);
+    rect(g, x + 15, y + 4, 2, 6, C.waterLight);
+  }
+
+  function greenhouse(g) {
+    const x = GREENHOUSE.x * T;
+    const y = GREENHOUSE.y * T;
+    const w = GREENHOUSE.w * T;
+    rect(g, x + 2, y + 30, w - 2, 3, C.shadow);
+    rect(g, x, y + 4, w, 28, '#2F5A4E');
+    rect(g, x + 2, y + 6, w - 4, 24, 'rgba(191, 227, 240, .75)');
+    for (let col = 2; col < w; col += 8) rect(g, x + col, y + 4, 1, 28, '#2F5A4E');
+    rect(g, x, y + 16, w, 1, '#2F5A4E');
+    rect(g, x + 4, y, w - 8, 5, '#2F5A4E');
+    [6, 14, 22, 30, 38].forEach((col, i) => {
+      rect(g, x + col, y + 24, 4, 4, C.soil);
+      rect(g, x + col, y + 20, 4, 4, [C.petal, '#F2C14E', '#B58BD6', C.petal, '#F4F1EA'][i]);
+    });
+    rect(g, x + w / 2 - 4, y + 22, 8, 10, '#2F5A4E');
+  }
+
+  function festival(g) {
+    rect(g, 0, 6 * T - 1, W, 1, 'rgba(60, 40, 20, .55)');
+    FESTIVAL_X.forEach((tx) => {
+      const x = tx * T + 6;
+      rect(g, x + 1, 6 * T, 1, 2, '#6B4526');
+      rect(g, x, 6 * T + 2, 4, 5, '#E8833A');
+      rect(g, x, 6 * T + 4, 4, 1, '#C25E2A');
+    });
+  }
+
+  function meadow(g) {
+    for (let tx = 7; tx < COLS; tx += 1) {
+      if (BUSHES.some(([bx, by]) => bx === tx && by === 10)) continue;
+      for (let i = 0; i < 5; i += 1) {
+        const px = tx * T + 2 + Math.floor(hash(tx, 10, i + 60) * 12);
+        const py = 10 * T + 2 + Math.floor(hash(tx, 10, i + 70) * 12);
+        rect(g, px, py, 2, 2, [C.petal, '#F2C14E', '#B58BD6', '#F4F1EA'][i % 4]);
+      }
+    }
+  }
+
+  function drawUnlocks(g, stage) {
+    if (stage >= 1) plaza(g);
+    if (stage >= 2) fountain(g);
+    if (stage >= 3) greenhouse(g);
+    if (stage >= 4) festival(g);
+    if (stage >= 5) meadow(g);
+  }
+
+  // Akşam ve gece fenerlerin ışığı (sahne karartıldıktan sonra çizilir).
+  function drawGlow(stage) {
+    const glow = (x, y) => {
+      rect(ctx, x - 3, y - 3, 10, 9, 'rgba(242, 210, 122, .18)');
+      rect(ctx, x, y, 4, 3, '#F2D27A');
+    };
+    if (stage >= 1) PLAZA_LANTERNS.forEach(([tx, ty]) => glow(tx * T + 6, ty * T + 2));
+    if (stage >= 4) FESTIVAL_X.forEach((tx) => glow(tx * T + 6, 6 * T + 3));
+  }
+
   /* Engeller */
 
   const blocked = new Set();
@@ -347,10 +469,26 @@ const scene = (() => {
   for (let tx = FENCE_FROM; tx < COLS; tx += 1) block(tx, FENCE_Y);
   GROUND.forEach((row, ty) => [...row].forEach((ch, tx) => { if (ch === 'W') block(tx, ty); }));
 
+  const unlockBlocked = new Set();
+  function rebuildUnlockBlocked(stage) {
+    unlockBlocked.clear();
+    if (stage >= 1) PLAZA_LANTERNS.forEach(([tx, ty]) => unlockBlocked.add(`${tx},${ty}`));
+    if (stage >= 2) [[0, 0], [1, 0], [0, 1], [1, 1]].forEach(([dx, dy]) => unlockBlocked.add(`${FOUNTAIN.x + dx},${FOUNTAIN.y + dy}`));
+    if (stage >= 3) {
+      for (let dx = 0; dx < GREENHOUSE.w; dx += 1) {
+        for (let dy = 0; dy < GREENHOUSE.h; dy += 1) unlockBlocked.add(`${GREENHOUSE.x + dx},${GREENHOUSE.y + dy}`);
+      }
+    }
+  }
+
   function isBlocked(x, y) {
     const points = [[x - 0.3, y - 0.05], [x + 0.3, y - 0.05], [x - 0.3, y - 0.3], [x + 0.3, y - 0.3]];
-    return points.some(([px, py]) =>
-      px < 0 || py < 0 || px >= COLS || py >= ROWS || blocked.has(`${Math.floor(px)},${Math.floor(py)}`));
+    const walls = mode === 'home' ? HOME_BLOCKED : blocked;
+    return points.some(([px, py]) => {
+      const key = `${Math.floor(px)},${Math.floor(py)}`;
+      if (px < 0 || py < 0 || px >= COLS || py >= ROWS) return true;
+      return walls.has(key) || (mode !== 'home' && unlockBlocked.has(key));
+    });
   }
 
   /* Statik katman: zemin ve nesneler. Tema ya da bahçe görünürlüğü değişince yeniden çizilir. */
@@ -377,6 +515,7 @@ const scene = (() => {
     BUSHES.forEach(([tx, ty]) => bush(g, tx, ty));
     bench(g, ...BENCH);
     cabin(g);
+    drawUnlocks(g, sharedTreeStage());
     TREES.forEach(([tx, ty]) => tree(g, tx, ty));
     sharedTree(g);
   }
@@ -390,6 +529,10 @@ const scene = (() => {
     { f: C.gold, y: '#6B4526' },          // 2 ayçiçeği
     { f: '#E8833A', y: '#E8833A' },       // 3 havuç
     { f: '#D9534F', y: '#F4F1EA' },       // 4 çilek
+    { f: '#E8833A', y: '#C25E2A' },       // 5 kabak (sonbahar)
+    { f: '#F7F7F2', y: '#B8D8C0' },       // 6 kardelen (kış)
+    { f: '#D93A2E', y: '#2B2622' },       // 7 gelincik (ilkbahar)
+    { f: '#9B7BC8', y: '#7A5BB0' },       // 8 lavanta (yaz)
   ];
   const BASE_COLORS = { g: C.leaf, G: C.leafDark, s: C.leafDark, b: C.woodDark };
 
@@ -406,6 +549,18 @@ const scene = (() => {
     }
     if (kind === 4) {
       return Object.assign(base, { 7: '..gfGg..s.gGfg..', 8: '...gGGgss.gfg...', 9: '......f.s.f.....' });
+    }
+    if (kind === 5) {
+      return Object.assign(base, { 8: '...gGGg..ffff...', 9: '......g.ffyfff..', 10: '........ffffff..', 11: '.........ffff...' });
+    }
+    if (kind === 6) {
+      return Object.assign(base, { 2: '......ss.ss.....', 3: '.....f..s..f....', 4: '.....ff.s.ff....', 5: '......y.s.y.....' });
+    }
+    if (kind === 7) {
+      return Object.assign(base, { 1: '......f.f.......', 2: '.....fffff......', 3: '.....ffyff......', 4: '......fff.......', 5: '.......s........' });
+    }
+    if (kind === 8) {
+      return Object.assign(base, { 1: '.....f..f..f....', 2: '.....y..f..y....', 3: '.....f..y..f....', 4: '.....y..f..y....', 5: '.....s..s..s....' });
     }
     return [...PLANT_SPRITES[4]];
   }
@@ -494,6 +649,7 @@ const scene = (() => {
         actor = { x: target[0], y: target[1], dir: 'down', flip: false, moving: false, walk: 0, roamed: false };
         actors[person.id] = actor;
       }
+      if (person === me && mode === 'home') return; // içerideyken bahçedeki karakter yerinde bekler
       if (person === me && canRoam()) {
         const wasMoving = actor.moving;
         moveByKeys(actor, dt);
@@ -540,10 +696,12 @@ const scene = (() => {
       const gx = actor.goal[0] - actor.x;
       const gy = actor.goal[1] - actor.y;
       if (Math.hypot(gx, gy) < 0.12) {
-        const plant = actor.goal[2];
+        const action = actor.goal[2];
         actor.goal = null;
         actor.moving = false;
-        if (plant) plantHere();
+        if (action === 'door') enterHome();
+        else if (action === 'exit') leaveHome();
+        else if (action) plantHere();
         return;
       }
       dx = gx;
@@ -686,6 +844,7 @@ const scene = (() => {
   }
 
   function baseHint() {
+    if (mode === 'home') return t('home.hint');
     if (state.phase === 'focus') {
       return state.participation === 'in'
         ? t('hint.focusIn')
@@ -721,6 +880,10 @@ const scene = (() => {
     if (col < 0 || col >= MY_PLOT.cols || row < 0 || row >= MY_PLOT.rows) return;
     const index = row * MY_PLOT.cols + col;
     if (index >= game.garden.length) return;
+    if (game.garden[index] === MAX_STAGE) {
+      onHarvest(index);
+      return;
+    }
     if (game.garden[index] !== 0) {
       showHint(t('hint.occupied', { name: t(`stageName.${game.garden[index]}`) }));
       return;
@@ -733,6 +896,102 @@ const scene = (() => {
     hintUntil = performance.now() + 2800;
   }
 
+  /* Evin içi: kişisel çalışma köşesi. Yalnızca molada ve beklemede; içeride diğerleri görünmez. */
+
+  let mode = 'garden';
+  const HOME_DOOR = { x: 9, y: 11 };
+  const homeActor = { x: 10, y: 10.6, dir: 'up', flip: false, moving: false, walk: 0, roamed: true, goal: null };
+  const HOME_BLOCKED = new Set();
+  (() => {
+    for (let tx = 0; tx < COLS; tx += 1) {
+      for (let ty = 0; ty < 3; ty += 1) HOME_BLOCKED.add(`${tx},${ty}`);
+      if (tx < HOME_DOOR.x || tx > HOME_DOOR.x + 1) HOME_BLOCKED.add(`${tx},11`);
+    }
+    [[13, 3], [14, 3], [15, 3], [16, 3]].forEach(([tx, ty]) => HOME_BLOCKED.add(`${tx},${ty}`));
+    for (let tx = 16; tx <= 18; tx += 1) for (let ty = 6; ty <= 8; ty += 1) HOME_BLOCKED.add(`${tx},${ty}`);
+    [[1, 9], [18, 3], [0, 3]].forEach(([tx, ty]) => HOME_BLOCKED.add(`${tx},${ty}`));
+  })();
+  let homeLayer;
+  let homeKey = '';
+
+  function drawHome(part) {
+    const g = homeLayer.getContext('2d');
+    // Zemin: sıcak ahşap tahtalar
+    rect(g, 0, 0, W, H, '#B9864F');
+    for (let y = 48; y < H; y += 6) rect(g, 0, y, W, 1, '#9A6A3F');
+    for (let y = 48, row = 0; y < H; y += 6, row += 1) {
+      for (let x = (row % 2) * 13; x < W; x += 26) rect(g, x, y, 1, 6, '#9A6A3F');
+    }
+    // Duvar ve süpürgelik
+    rect(g, 0, 0, W, 46, '#E8D9B5');
+    for (let x = 0; x < W; x += 8) rect(g, x, 0, 2, 46, '#DCC9A0');
+    rect(g, 0, 44, W, 4, '#6B4526');
+    // Pencere: gündüz gök mavisi, akşam ve gece koyu ve yıldızlı
+    rect(g, 64, 8, 36, 26, '#6B4526');
+    rect(g, 67, 11, 30, 20, part.lit ? '#1E2A4A' : '#BFE3F0');
+    if (part.lit) [[70, 14], [82, 18], [91, 13], [75, 25]].forEach(([x, y]) => rect(g, x, y, 1, 1, '#F2D27A'));
+    rect(g, 81, 11, 2, 20, '#6B4526');
+    rect(g, 67, 20, 30, 2, '#6B4526');
+    // Kitaplık
+    rect(g, 12, 6, 40, 40, '#6B4526');
+    [10, 22, 34].forEach((y) => {
+      rect(g, 14, y + 9, 36, 2, '#4E3420');
+      ['#B85C7A', '#2F6B5E', '#E3B458', '#7E949A', '#C78A6C', '#3E672C', '#9C5B34'].forEach((color, i) => {
+        rect(g, 15 + i * 5, y, 4, 9, color);
+      });
+    });
+    // Şömine ve ateş
+    rect(g, 128, 6, 40, 40, '#9C9A92');
+    rect(g, 126, 4, 44, 4, '#7C7A72');
+    rect(g, 138, 22, 20, 22, '#2B2622');
+    rect(g, 142, 32, 12, 10, '#E8833A');
+    rect(g, 145, 28, 6, 8, '#F2D27A');
+    // Masa, dizüstü bilgisayar ve lamba
+    rect(g, 208, 40, 64, 18, '#7A5132');
+    rect(g, 208, 40, 64, 3, '#9A6A3F');
+    rect(g, 214, 58, 3, 8, '#4E3420');
+    rect(g, 263, 58, 3, 8, '#4E3420');
+    rect(g, 228, 30, 22, 12, '#3B4A66');
+    rect(g, 230, 32, 18, 8, part.lit ? '#8CC9E6' : '#BFE3F0');
+    rect(g, 258, 26, 2, 14, '#2B2622');
+    rect(g, 253, 22, 12, 6, '#F2D27A');
+    rect(g, 228, 66, 14, 10, '#9A6A3F');
+    // Halı
+    rect(g, 112, 80, 96, 64, '#B85C7A');
+    rect(g, 116, 84, 88, 56, '#C77A92');
+    rect(g, 120, 88, 80, 48, '#B85C7A');
+    // Yatak
+    rect(g, 256, 96, 48, 52, '#7A5132');
+    rect(g, 258, 98, 44, 48, '#7E949A');
+    rect(g, 262, 100, 36, 10, '#F4F1EA');
+    // Saksılar
+    [[18, 146], [290, 52], [6, 52]].forEach(([x, y]) => {
+      rect(g, x, y + 8, 10, 8, '#A9754A');
+      rect(g, x - 1, y, 12, 9, '#4E8F3A');
+      rect(g, x + 3, y - 3, 4, 4, '#5E9A3C');
+    });
+    // Kapı (alt duvar) ve paspas
+    rect(g, 0, 176, W, 16, '#6B4526');
+    rect(g, HOME_DOOR.x * T, 176, 32, 16, '#3E672C');
+    rect(g, HOME_DOOR.x * T + 4, 166, 24, 8, '#C9A46A');
+  }
+
+  function enterHome() {
+    if (!canRoam() || mode === 'home') return;
+    mode = 'home';
+    Object.assign(homeActor, { x: HOME_DOOR.x + 1, y: 10.4, dir: 'up', goal: null, moving: false });
+    keys.clear();
+    showHint(t('home.enter'));
+  }
+
+  function leaveHome() {
+    if (mode !== 'home') return;
+    mode = 'garden';
+    const mine = actors[me.id];
+    if (mine) Object.assign(mine, { x: 7.5, y: 4.5, dir: 'down', goal: null, roamed: true });
+    keys.clear();
+  }
+
   /* Döngü */
 
   function frame(time) {
@@ -741,13 +1000,37 @@ const scene = (() => {
     clock += dt;
 
     const part = dayPart();
-    const key = `${part.name}|${game.show.garden}|${sharedTreeStage()}`;
+    const stage = sharedTreeStage();
+    const season = currentSeason();
+    const key = `${part.name}|${game.show.garden}|${stage}|${season}`;
     if (key !== staticKey) {
+      applySeason(season);
+      rebuildUnlockBlocked(stage);
       drawStatic();
       staticKey = key;
-      wrap.style.background = part.edge;
     }
+    // Odak başlarsa ya da profil açılırsa kişi bahçeye döner.
+    if (mode === 'home' && !canRoam()) leaveHome();
+    wrap.style.background = mode === 'home' ? '#6B4526' : edgeColor(part);
     updateActors(dt);
+
+    if (mode === 'home') {
+      if (part.name !== homeKey) {
+        drawHome(part);
+        homeKey = part.name;
+      }
+      moveByKeys(homeActor, dt);
+      if (homeActor.y > 11.3) leaveHome();
+      ctx.clearRect(0, 0, W, H);
+      ctx.drawImage(homeLayer, 0, 0);
+      drawCharacter(me, homeActor);
+      if (part.lit) rect(ctx, 0, 0, W, H, 'rgba(18, 22, 52, .18)');
+      labels.hidden = true;
+      updateText(visibleGarden());
+      requestAnimationFrame(frame);
+      return;
+    }
+    labels.hidden = false;
 
     ctx.clearRect(0, 0, W, H);
     ctx.drawImage(staticLayer, 0, 0);
@@ -767,6 +1050,7 @@ const scene = (() => {
         rect(ctx, wx + 5, CABIN.y * T + 43, 1, 8, C.woodDark);
         rect(ctx, wx, CABIN.y * T + 46, 12, 1, C.woodDark);
       });
+      drawGlow(stage);
     }
 
     residentEmotes();
@@ -785,6 +1069,16 @@ const scene = (() => {
     { name: 'evening', from: 19.5, to: 21, tint: 'rgba(40, 40, 110, .3)', edge: '#576E54', lit: true },
     { name: 'night', from: 21, to: 24, tint: 'rgba(18, 22, 52, .42)', edge: '#4A6E3E', lit: true },
   ];
+
+  // canvas'ın iki yanındaki boşluk: mevsimin çim rengi ile günün katmanının karışımı.
+  function edgeColor(part) {
+    const base = C.grass.match(/\w\w/g).map((h) => parseInt(h, 16));
+    const tint = part.tint.match(/[\d.]+/g);
+    if (!tint) return C.grass;
+    const [r, g, b, a] = tint.map(Number);
+    const mix = base.map((value, i) => Math.round(value * (1 - a) + [r, g, b][i] * a));
+    return `rgb(${mix.join(',')})`;
+  }
 
   function dayPart() {
     const now = new Date();
@@ -815,6 +1109,9 @@ const scene = (() => {
     staticLayer = document.createElement('canvas');
     staticLayer.width = W;
     staticLayer.height = H;
+    homeLayer = document.createElement('canvas');
+    homeLayer.width = W;
+    homeLayer.height = H;
     canvas.width = W;
     canvas.height = H;
 
@@ -825,7 +1122,13 @@ const scene = (() => {
         if (canRoam()) keys.add(dir);
       } else if (event.key === 'e' || event.key === 'E' || event.key === ' ' || event.key === 'Enter') {
         event.preventDefault();
-        plantHere();
+        if (mode === 'home') {
+          if (homeActor.y > 10.2) leaveHome();
+          return;
+        }
+        const mine = actors[me.id];
+        if (mine && canRoam() && Math.hypot(mine.x - 7.5, mine.y - 4.2) < 0.9) enterHome();
+        else plantHere();
       }
     });
     canvas.addEventListener('keyup', (event) => {
@@ -847,9 +1150,19 @@ const scene = (() => {
       const row = ty - MY_PLOT.y;
       const onPlot = col >= 0 && col < MY_PLOT.cols && row >= 0 && row < MY_PLOT.rows;
       const index = row * MY_PLOT.cols + col;
-      const plant = onPlot && game.show.garden && game.garden[index] === 0;
-      if (onPlot && game.show.garden && game.garden[index] > 0) showHint(t('hint.occupied', { name: t(`stageName.${game.garden[index]}`) }));
-      mine.goal = onPlot ? [tx + 0.5, ty + 0.75, plant] : [x, y + 0.3, false];
+      if (mode === 'home') {
+        const atDoor = ty >= HOME_DOOR.y && tx >= HOME_DOOR.x && tx < HOME_DOOR.x + 2;
+        homeActor.goal = atDoor ? [HOME_DOOR.x + 1, 11.6, 'exit'] : [x, y + 0.3, false];
+        return;
+      }
+      if (tx === 7 && ty === 3) {
+        mine.goal = [7.5, 4.25, 'door'];
+        return;
+      }
+      const stage = game.garden[index];
+      const act = onPlot && game.show.garden && (stage === 0 || stage === MAX_STAGE);
+      if (onPlot && game.show.garden && stage > 0 && stage < MAX_STAGE) showHint(t('hint.occupied', { name: t(`stageName.${stage}`) }));
+      mine.goal = onPlot ? [tx + 0.5, ty + 0.75, act] : [x, y + 0.3, false];
     });
 
     new ResizeObserver(fit).observe(wrap);
@@ -880,5 +1193,5 @@ const scene = (() => {
     emotes[id] = { kind, until: clock + 3 };
   }
 
-  return { init, myPosition, showEmote, showHint, sharedTreeStage, SHARED_TREE_STEPS };
+  return { init, myPosition, showEmote, showHint, sharedTreeStage, SHARED_TREE_STEPS, isHome: () => mode === 'home' };
 })();
