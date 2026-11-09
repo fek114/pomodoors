@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Pixelify+Sans:wght@400..700&display=swap">
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js" defer></script>
-  <script src="avatars.js" defer></script>
+  <script src="characters.js" defer></script>
   <script src="i18n.js" defer></script>
   <script src="scene.js" defer></script>
   <script src="net.js" defer></script>
@@ -51,7 +51,7 @@
         <button class="btn btn-primary" id="joinBtn" type="submit" data-i18n="join.button"></button>
       </form>
       <p class="fine" data-i18n="join.fine"></p>
-      <p class="fine" id="joinSchedule"></p>
+      <p class="fine" data-i18n="join.schedule"></p>
       <p class="join-error" id="joinError" role="alert" hidden></p>
     </div>
   </main>
@@ -80,35 +80,20 @@
           <button class="emote" type="button" data-emote="heart"><span class="emote-icon" aria-hidden="true"></span><span data-i18n="emote.heart"></span></button>
           <button class="emote" type="button" data-emote="coffee"><span class="emote-icon" aria-hidden="true"></span><span data-i18n="emote.coffee"></span></button>
         </div>
+        <label class="ambient"><span data-i18n="ambient.label"></span>
+          <select id="ambientSelect">
+            <option value="off" data-i18n="ambient.off"></option>
+            <option value="rain" data-i18n="ambient.rain"></option>
+            <option value="birds" data-i18n="ambient.birds"></option>
+            <option value="fire" data-i18n="ambient.fire"></option>
+          </select>
+        </label>
         <p class="scene-hint" id="sceneHint" role="status" aria-live="polite"></p>
         <p class="scene-caption" id="gardenCaption"></p>
       </div>
     </section>
 
     <section class="stage" data-i18n-aria="stage.aria">
-
-      <div class="stage-block" data-block="waiting join">
-        <form id="startForm">
-          <div class="field">
-            <label for="intentInput" data-i18n="intent.label"></label>
-            <input class="text-input" id="intentInput" type="text" maxlength="80" autocomplete="off" data-i18n-placeholder="intent.placeholder">
-            <p class="hint"><span data-i18n="intent.hint"></span><span id="intentCount">0/80</span></p>
-          </div>
-          <fieldset class="durations" id="durations">
-            <legend data-i18n="duration.legend"></legend>
-            <div class="segmented">
-              <label><input type="radio" name="duration" value="15"><span data-i18n="duration.15"></span></label>
-              <label><input type="radio" name="duration" value="25" checked><span data-i18n="duration.25"></span></label>
-              <label><input type="radio" name="duration" value="45"><span data-i18n="duration.45"></span></label>
-            </div>
-            <p class="hint" data-i18n="duration.hint"></p>
-          </fieldset>
-          <div class="form-actions">
-            <button class="btn btn-primary" id="startBtn" type="submit"></button>
-            <p class="fine" id="startNote"></p>
-          </div>
-        </form>
-      </div>
 
       <div class="stage-block" data-block="focus" hidden>
         <p class="label" data-i18n="focus.intentLabel"></p>
@@ -155,6 +140,21 @@
           <p class="fine" id="breakNote"></p>
         </div>
       </div>
+
+      <div class="stage-block" data-block="join break" hidden>
+        <form id="startForm">
+          <div class="field">
+            <label for="intentInput" id="intentLabel"></label>
+            <input class="text-input" id="intentInput" type="text" maxlength="80" autocomplete="off" data-i18n-placeholder="intent.placeholder">
+            <p class="hint"><span data-i18n="intent.hint"></span><span id="intentCount">0/80</span></p>
+          </div>
+          <label class="toggle" id="autoJoinRow"><input type="checkbox" id="autoJoin" checked><span id="autoJoinText"></span></label>
+          <div class="form-actions">
+            <button class="btn btn-primary" id="startBtn" type="submit"></button>
+            <p class="fine" id="startNote"></p>
+          </div>
+        </form>
+      </div>
     </section>
 
     <aside class="side" data-i18n-aria="side.aria">
@@ -172,7 +172,19 @@
           <span class="count" data-i18n="board.reset"></span>
         </div>
         <p class="communal" id="communalText"></p>
+        <p class="tree-text" id="treeText"></p>
         <p class="fine" data-i18n="board.fine"></p>
+      </section>
+
+      <section class="seeds card" id="seedsSection" aria-labelledby="seedsTitle">
+        <div class="section-head">
+          <h2 id="seedsTitle" data-i18n="seeds.title"></h2>
+        </div>
+        <fieldset class="seed-fieldset">
+          <legend class="visually-hidden" data-i18n="seeds.select"></legend>
+          <ul class="seed-list" id="seedList"></ul>
+        </fieldset>
+        <p class="fine" data-i18n="seeds.fine"></p>
       </section>
 
       <section class="chat card" aria-labelledby="chatTitle">
@@ -209,14 +221,11 @@
     <h1 class="profile-title" id="profileTitle" data-i18n="profile.title"></h1>
     <p class="profile-lede" data-i18n="profile.lede"></p>
     <div class="profile-layout">
-      <fieldset class="avatar-picker">
-        <legend class="visually-hidden" data-i18n="profile.options"></legend>
-        <div class="avatar-grid" id="avatarGrid"></div>
-      </fieldset>
+      <div class="look-editor" id="lookEditor"></div>
       <aside class="card profile-preview" aria-labelledby="profilePreviewTitle">
         <p class="label" id="profilePreviewTitle" data-i18n="profile.preview"></p>
+        <div class="look-big avatar-pixel" id="lookBig" aria-hidden="true"></div>
         <ul class="people-list" id="profilePreview"></ul>
-        <p class="fine" id="avatarLabel"></p>
       </aside>
     </div>
     <section class="card game-settings" aria-labelledby="gameSettingsTitle">
@@ -234,6 +243,16 @@
     </div>
   </main>
 
+  <dialog class="sheet tour" id="tourDialog" aria-labelledby="tourTitle">
+    <p class="label" id="tourStep"></p>
+    <h2 id="tourTitle"></h2>
+    <p id="tourText"></p>
+    <div class="sheet-actions">
+      <button class="btn btn-quiet" id="tourSkip" type="button" data-i18n="tour.skip"></button>
+      <button class="btn btn-primary" id="tourNext" type="button"></button>
+    </div>
+  </dialog>
+
   <dialog class="sheet" id="leaveDialog" aria-labelledby="leaveTitle">
     <form method="dialog">
       <h2 id="leaveTitle" data-i18n="leave.title"></h2>
@@ -245,5 +264,13 @@
     </form>
   </dialog>
 
+  <!-- Test modu: yalnızca odada dev_mode açıkken görünür; ürün arayüzünün parçası değil. Pilot öncesi kapatılır. -->
+  <div class="devbar" id="devBar" role="group" data-i18n-aria="dev.label" hidden>
+    <span class="devbar-label" data-i18n="dev.label"></span>
+    <button type="button" data-timing="1500,300" data-i18n="dev.real"></button>
+    <button type="button" data-timing="180,60">3 + 1 dk</button>
+    <button type="button" data-timing="60,30">1 dk + 30 sn</button>
+    <button type="button" data-timing="30,20">30 + 20 sn</button>
+  </div>
 </body>
 </html>

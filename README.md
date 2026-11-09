@@ -6,7 +6,7 @@
 
 Başlaması zor gelen işler için sakin ve yargılamayan bir ortak çalışma web uygulaması. Kullanıcı kısa bir niyet yazar, süresini seçer ve kamerasız bir odada başkalarıyla aynı anda çalışır. Odakta geçen dakikalar kişinin kendi bahçesini büyütür. Odak sırasında sohbet kapalıdır, molada açılır.
 
-> **Durum:** `prototip/` artık Supabase'e bağlı çalışan bir web uygulaması: takma adla giriş (arka planda anonim oturum), tek ortak oda, sunucuda uygulanan tur ve sohbet kuralları, kalıcı profil ve bahçe, gerçek zamanlı katılımcılar, molada paylaşılan konumlar ve tepkiler, her gün planlı ortak turlar, Türkçe ve İngilizce arayüz. Henüz bir yerde yayında değil; yerelde açılır.
+> **Durum:** `prototip/` artık Supabase'e bağlı çalışan bir web uygulaması: takma adla giriş (arka planda anonim oturum), tek ortak oda, sunucuda uygulanan tur ve sohbet kuralları, kalıcı profil ve bahçe, saat ayarlı oda (her :00 ve :30'da tur), gerçek zamanlı katılımcılar, molada paylaşılan konumlar ve tepkiler, piksel karakterler, tohum çeşitleri, ortak ağaç, gerçek saate bağlı gün döngüsü, ilk giriş turu, ortam sesi, Türkçe ve İngilizce arayüz. Henüz bir yerde yayında değil; yerelde açılır.
 >
 > "PomoDoors" bir çalışma adıdır, kesinleşmedi.
 
@@ -82,10 +82,29 @@ Oyun öğeleri kişiye eşlik etmek için var; baskı kurmak, cezalandırmak ya 
 - Liderlik tablosunun yerini alır. Odadakilerin bu hafta birlikte topladığı odak dakikalarını tek bir toplam olarak gösterir: "Bu hafta odadakiler birlikte 340 dk odaklandı."
 - Kimse sıralanmaz, kişi bazında süre gösterilmez. Her pazartesi yeniden başlar.
 
-### Tepkiler ve planlı ortak turlar
+### Saat ayarlı oda
+
+- Oda duvar saatine bağlıdır: her saat başı ve buçukta 25 dk odak başlar, :25'te 5 dk mola. Bekleme aşaması ve elle tur başlatma yoktur; süre seçimi (15/45) kaldırıldı.
+- Odaya odak sırasında giren "Kalan süreye katıl" der. Molada sıradaki tur için niyet yazılır; "turuna beni de kat" seçiliyse (varsayılan) tur başlar başlamaz otomatik katılınır.
+- Aşama sunucu saatinden hesaplanır (`room_slot`, `room_phase`); sohbet, tohum ekme ve katılım kuralları buna göre uygulanır.
+- **Test modu (geçici):** `rooms.dev_mode` açıkken sayfanın altında bir test çubuğu görünür ve odak/mola süreleri herkes için kısaltılabilir (ör. 30 + 20 sn). Döngü yine duvar saatine hizalıdır. Pilot öncesi süreler 1500 + 300 sn'ye alınır ve `dev_mode` kapatılır.
+
+### Tepkiler, ortak ağaç ve gün döngüsü
 
 - Bekleme ve molada karakterin üstünde kısa piksel tepkiler: el sallama, kalp, kahve. Odakta kapalıdır.
-- Her gün İstanbul saatiyle 10:00, 14:00 ve 21:00'de oda beklemedeyse 25 dk'lık bir ortak tur kendiliğinden başlar (sunucu zamanlayıcısı, pg_cron). Odadakiler "Kalan süreye katıl" ile katılır.
+- Sahnedeki ortak ağaç odanın haftalık toplam dakikasıyla büyür: 0, 60, 200, 500, 1000 ve 2000 dk'da altı aşama; son aşamada çiçek açar. Her pazartesi yeniden başlar.
+- Sahne kullanıcının yerel saatine göre sabah, gündüz, gün batımı, akşam ve gece renklerine geçer; akşam ve gece evin pencereleri yanar. Açık/koyu temadan bağımsızdır.
+
+### Tohum çeşitleri
+
+- Papatya ücretsizdir; lale 15, havuç 20, ayçiçeği 30, çilek 40 Yaprak. Satın alınan tohum kesede durur; molada boş tarha seçilen tohum ekilir.
+- İlk üç büyüme aşaması bütün çeşitlerde aynıdır; olgun hali çeşide göre değişir. Harcama gönüllüdür; hiçbir şey kendiliğinden eksilmez.
+
+### Karakter, ilk giriş turu ve ortam sesi
+
+- Sahnede, listede, sohbette ve profilde aynı piksel karakter. Ten, saç rengi, saç stili (kısa, uzun, bere) ve kıyafet rengi seçilir.
+- İlk girişte üç adımlık, atlanabilir bir tur gösterilir.
+- İsteğe bağlı ortam sesi (yağmur, kuşlar, şömine) tarayıcıda üretilir; varsayılan kapalıdır.
 
 ### Prototip varsayılanları
 
@@ -107,13 +126,12 @@ Oyun öğeleri kişiye eşlik etmek için var; baskı kurmak, cezalandırmak ya 
 ### Kapsadıkları
 
 - **Oda ekranı:** Bekleme, Odak ve Mola halleri; üstte ahşap gösterge (aşama, zamanlayıcı), altında 2B piksel bahçe sahnesi.
-  - **Bekleme:** isteğe bağlı niyet alanı (80 karakter), 15 / 25 / 45 dk seçimi (25 seçili gelir), "Turu başlat".
   - **Odak:** ortak geri sayım, ilerleme çizgisi, molanın başlayacağı saat, katılımcılar ve niyetleri, kapalı sohbet. "Turdan ayrıl" önce onay ister; ayrılan kişi "Tura geri dön" diyebilir. İptal düğmesi yok.
   - **Odak sürerken giriş:** "Kalan süreye katıl". Kayıt katılınan andan başlar; ortak zamanlayıcı değişmez.
   - **Mola:** 5 dk geri sayım ve herkese açık sohbet. Kişisel tur özeti yalnızca önceki tura katılmış kullanıcıya gösterilir.
 - **Aşama geçişleri:** ekranda kısa bir bildirim ve isteğe bağlı ses (varsayılan kapalı).
 - **Katılımcı listesi:** avatar, ad, niyet ve durum ("Beklemede", "Odakta", "Molada", "Turdan ayrıldı", "Henüz katılmadı"). Durumlar metin ve ikonla gösterilir.
-- **Profil / avatar seçimi:** 8 özgün SVG avatar. Seçim başlıkta, katılımcı listesinde ve sohbette hemen görünür.
+- **Profil / karakter düzenleyici:** ten, saç rengi, saç stili ve kıyafet; seçim her yerde hemen görünür.
 - **Giriş:** tek alan, "Takma adın". Arka planda Supabase anonim oturumu açılır; profil ve bahçe o tarayıcıda hatırlanır.
 - **Gerçek zamanlı oda:** kimin odada olduğu (presence), molada karakter konumları ve tepkiler (broadcast), tur başlangıcı ve yeni mesajlar (veritabanı değişiklikleri).
 - **İki dil:** üst bardaki TR / EN düğmesi. Tüm metinler `i18n.js` içinde.
@@ -125,7 +143,6 @@ Oyun öğeleri kişiye eşlik etmek için var; baskı kurmak, cezalandırmak ya 
 - Kalıcı hesap yok. Tarayıcı verisi silinirse ya da cihaz değişirse profil taşınmaz.
 - Görev listesi, mağaza ve oturum/görev geçmişi yok.
 - Otomatik test yok.
-- Avatarlar listede ve sohbette hâlâ vektör çizimler; sahnede piksel karakterler var.
 
 - Kural hem arayüzde hem sunucuda uygulanmalı. Sunucu mesajı kendi saatine ve odanın o anki aşamasına göre kabul eder ya da reddeder. Reddedilen mesajın metni kullanıcının ekranından silinmez.
 
@@ -161,12 +178,11 @@ Bu konular henüz karara bağlanmadı. İlgili bir değişiklikten önce sorun:
 - Pilot sonrası kalıcı hesap: anonim oturuma e-posta bağlamak gerekecek mi? (Pilotta yalnızca takma ad.)
 - Ön yüzün yayınlanacağı yer ve alan adı. Veritabanı ve gerçek zamanlı katman: Supabase, Frankfurt.
 - Görev listesi ile tur niyeti arasındaki bağ: niyet bir görevden seçilebilecek mi?
-- Tohum, süs ve aksesuarların Yaprak fiyatları; mağaza ekranı.
+- Tohum fiyatları pilotta değişsin mi? Süs ve aksesuar mağazası olacak mı?
 - XP eğrisi pilotta sabit 100 XP olarak kalsın mı?
 - Tamamlanan küçük görevler de XP ya da para kazandırsın mı? Kazandırırsa "XP yalnızca odaktan gelir" kuralı değişir.
 - Bahçe odadaki diğer kişilere görünsün mü?
-- Ortak tur saatleri (şimdilik 10:00, 14:00, 21:00) pilot sonrası değişsin mi?
-- Mevcut 8 SVG avatar piksel sanata dönüştürülsün mü?
+- Saat ayarlı odanın yanında serbest süreli (15/45 dk) ikinci bir oda olacak mı?
 - Avatar galerisine fotoğraf yükleme eklenip eklenmeyeceği. Şu anki yön yalnızca hazır avatarlar.
 - Pilot ölçeği: aynı anda kaç kişi?
 - Ürün adı ve alan adı.
@@ -179,7 +195,7 @@ Bu konular henüz karara bağlanmadı. İlgili bir değişiklikten önce sorun:
 └── prototip/
     ├── index.html     # giriş, oda ve profil görünümleri
     ├── styles.css     # tasarım belirteçleri (:root), açık/koyu tema
-    ├── avatars.js     # SVG avatar seti
+    ├── characters.js  # piksel karakterler ve portreler
     ├── i18n.js        # Türkçe ve İngilizce metinler
     ├── scene.js       # bahçe sahnesi: canvas, karolar, karakterler, tepkiler
     ├── net.js         # Supabase bağlantısı: oturum, oda, presence, broadcast
@@ -203,7 +219,8 @@ Kurulum, paket yükleme ya da derleme adımı yok. Supabase istemcisi (supabase-
 ### Sunucu tarafı
 
 - Tablolar: `profiles`, `rooms` (tek ortak oda), `participations`, `messages`. RLS açık; kullanıcı XP, Yaprak ve bahçeyi kendisi yazamaz.
-- Fonksiyonlar: `start_turn`, `join_turn`, `leave_turn`, `claim_reward`, `plant_seed`, `room_week_minutes`, `start_scheduled_turn` (yalnızca zamanlayıcı çağırır).
+- Fonksiyonlar: `room_slot`, `room_phase`, `set_room_timing` (yalnızca test modunda), `join_turn`, `leave_turn`, `claim_reward`, `buy_seed`, `plant_seed`, `room_week_minutes`.
+- Yayın: `.github/workflows/pages.yml` ön yüzü GitHub Pages'e çıkarır; şimdilik elle tetiklenir.
 - Ücretsiz Supabase projeleri bir hafta hiç kullanılmazsa duraklatılır; panelden tek tıkla yeniden açılır, veri silinmez.
 
 ## Ajan yönergeleri

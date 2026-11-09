@@ -118,9 +118,13 @@ button { cursor: pointer; }
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  flex-wrap: wrap;
   max-width: 1160px;
   margin: 0 auto;
   padding: 18px var(--gutter);
+}
+@media (max-width: 1000px) {
+  .room-name { display: none; }
 }
 
 .brand { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
@@ -766,6 +770,53 @@ body[data-phase="break"] .hud .eyebrow-dot { box-shadow: inset 0 0 0 2px #A6D17F
 .sheet p { margin: 0; color: var(--ink-2); }
 .sheet-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 24px; }
 
+/* Piksel portreler ve karakter düzenleyici */
+
+.avatar-pixel { background: var(--av-sand); image-rendering: pixelated; }
+.avatar-pixel svg { display: block; width: 100%; height: 100%; }
+.look-editor { display: grid; gap: 20px; }
+.look-group { margin: 0; padding: 0; border: 0; }
+.look-group legend { margin-bottom: 8px; padding: 0; font-weight: 600; }
+.look-options { display: flex; flex-wrap: wrap; gap: 8px; }
+.look-option { position: relative; cursor: pointer; }
+.look-swatch {
+  display: block;
+  width: 36px;
+  height: 36px;
+  border: 2px solid var(--line-strong);
+  border-radius: var(--radius);
+}
+.look-swatch-wide { width: 52px; height: 48px; padding: 4px; background: var(--av-sand); }
+.look-swatch-wide svg { display: block; width: 100%; height: 100%; }
+.look-option input:checked + .look-swatch { border-color: var(--ink); box-shadow: 0 0 0 2px var(--accent); }
+.look-option input:focus-visible + .look-swatch { outline: 2px solid var(--accent); outline-offset: 3px; }
+.look-big { width: 96px; height: 96px; margin: 4px 0 12px; border-radius: var(--radius); }
+
+/* Tohum kesesi */
+
+.seed-fieldset { margin: 0; padding: 0; border: 0; }
+.seed-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.seed-row { display: flex; align-items: center; gap: 10px; }
+.seed-pick { display: flex; flex: 1; align-items: center; gap: 8px; min-width: 0; cursor: pointer; }
+.seed-pick input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
+.seed-icon { display: inline-block; width: 24px; height: 24px; image-rendering: pixelated; }
+.seed-name { font-weight: 500; }
+.seed-meta { color: var(--ink-3); font-size: 13px; white-space: nowrap; }
+.seed-buy { padding: 6px 10px; font-size: 13px; }
+.tree-text { margin: 8px 0 0; color: var(--ink-2); font-size: 14px; }
+
+/* Ortam sesi ve ilk giriş turu */
+
+.ambient { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 4px; font-size: 13.5px; }
+.ambient select {
+  padding: 4px 8px;
+  border: 2px solid #B9864F;
+  border-radius: var(--radius);
+  background: #7A5434;
+  color: #FFF8E8;
+}
+.tour h2 { margin: 4px 0 8px; font-family: var(--pixel); font-size: 24px; font-weight: 500; }
+
 /* Takma adla giriş */
 
 .join { max-width: 560px; margin: 0 auto; padding: clamp(40px, 10vw, 96px) var(--gutter) 0; }
@@ -780,6 +831,30 @@ body.is-joining .topbar-actions { visibility: hidden; }
 
 button.me { padding: 0; border: 0; border-radius: 50%; background: none; }
 .communal { margin: 0; font-size: 16px; }
+
+/* Test modu çubuğu: ürün arayüzünün parçası değil */
+
+.devbar {
+  position: fixed;
+  bottom: 12px;
+  left: 50%;
+  z-index: 30;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  max-width: calc(100vw - 24px);
+  padding: 8px 12px;
+  border: 1px dashed #5C5850;
+  border-radius: 6px;
+  background: #1C1B19;
+  color: #E9E5DC;
+  font-size: 12.5px;
+  transform: translateX(-50%);
+}
+.devbar-label { color: #A8A396; }
+.devbar button { padding: 4px 8px; border: 1px solid #4A4740; border-radius: 4px; background: #1C1B19; color: #E9E5DC; }
+.devbar button[aria-pressed="true"] { border-color: #E9E5DC; background: #E9E5DC; color: #1C1B19; }
 
 /* Dar ekranlar */
 

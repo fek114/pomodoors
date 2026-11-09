@@ -35,8 +35,8 @@ const net = (() => {
   };
 
   api.loadProfile = () => check(db.from('profiles').select('*').eq('id', api.userId).maybeSingle());
-  api.createProfile = (nickname, avatar) =>
-    check(db.from('profiles').insert({ id: api.userId, nickname, avatar }).select().single());
+  api.createProfile = (nickname, look) =>
+    check(db.from('profiles').insert({ id: api.userId, nickname, look }).select().single());
   api.updateProfile = (fields) =>
     check(db.from('profiles').update(fields).eq('id', api.userId).select().single());
 
@@ -48,16 +48,17 @@ const net = (() => {
     api.offset = Date.parse(serverNow) - (sentAt + receivedAt) / 2;
   };
 
-  api.loadRoom = () => check(db.from('rooms').select('*').eq('id', ROOM).single());
   api.loadParticipation = (turnStartedAt) => check(db.from('participations').select('*')
     .eq('room_id', ROOM).eq('turn_started_at', turnStartedAt).eq('user_id', api.userId).maybeSingle());
 
-  api.startTurn = (minutes, intent) =>
-    check(db.rpc('start_turn', { p_room: ROOM, p_minutes: minutes, p_intent: intent || null }));
+  api.loadRoom = () => check(db.from('rooms').select('*').eq('id', ROOM).single());
+  api.setRoomTiming = (focus, brk) =>
+    check(db.rpc('set_room_timing', { p_room: ROOM, p_focus: focus, p_break: brk }));
   api.joinTurn = (intent) => check(db.rpc('join_turn', { p_room: ROOM, p_intent: intent || null }));
   api.leaveTurn = () => check(db.rpc('leave_turn', { p_room: ROOM }));
   api.claimReward = () => check(db.rpc('claim_reward', { p_room: ROOM }));
-  api.plantSeed = (index) => check(db.rpc('plant_seed', { p_index: index }));
+  api.plantSeed = (index, kind) => check(db.rpc('plant_seed', { p_index: index, p_kind: kind }));
+  api.buySeed = (kind) => check(db.rpc('buy_seed', { p_kind: kind }));
   api.weekMinutes = () => check(db.rpc('room_week_minutes', { p_room: ROOM }));
 
   api.loadMessages = (sinceIso) => check(db.from('messages').select('*')
@@ -65,7 +66,7 @@ const net = (() => {
   api.sendMessage = (body) => check(db.from('messages').insert({ room_id: ROOM, body }).select().single());
 
   // Oda kanalı: kimlerin odada olduğu (presence), molada karakter konumları (broadcast),
-  // tur başlangıcı ve yeni mesajlar (veritabanı değişiklikleri).
+  // oda süreleri ve yeni mesajlar (veritabanı değişiklikleri). Tur, duvar saatine hizalı döngüden hesaplanır.
   api.connect = (handlers) => {
     channel = db.channel(`room:${ROOM}`, {
       config: { presence: { key: api.userId }, broadcast: { self: false } },

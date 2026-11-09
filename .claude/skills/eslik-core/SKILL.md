@@ -16,7 +16,7 @@ PomoDoors, Eşlik'in oyunlaştırılmış bir varyantı: başlaması zor gelen i
 
 ## Kural 1: Oyun öğelerini baskısız sınırlar içinde tut
 
-PomoDoors'ta dört oyun öğesi var: büyüyen bahçe; XP, seviye ve Yaprak; seri; ortak bahçe (odadakilerin bu hafta birlikte topladığı süre). Molada ve beklemede tepkiler (el sallama, kalp, kahve) de var. Bunlarla çalışmak serbest, ama her biri README'deki "Oyunlaştırma" bölümünün sınırlarıyla birlikte gelir. Önerilerinde, tasarımlarında ve kodunda şunlara yer verme:
+PomoDoors'ta dört oyun öğesi var: büyüyen bahçe; XP, seviye ve Yaprak; seri; ortak bahçe (odadakilerin bu hafta birlikte topladığı süre). Molada tepkiler (el sallama, kalp, kahve), Yaprak ile alınan tohum çeşitleri ve odanın haftalık süresiyle büyüyen ortak ağaç da var. Oda saat ayarlıdır: her :00 ve :30'da 25 dk odak, 5 dk mola. Şu an geçici test modu açık (`rooms.dev_mode`); süreleri test çubuğundan kısaltabilirsin. Pilot öncesi kapatılacak; yayın öncesi kullanıcıya hatırlat. Bunlarla çalışmak serbest, ama her biri README'deki "Oyunlaştırma" bölümünün sınırlarıyla birlikte gelir. Önerilerinde, tasarımlarında ve kodunda şunlara yer verme:
 
 - Kazanılanı geri almak: XP, seviye, para ya da eşya kaybı; bitkilerin kuruması, solması, ölmesi
 - Seri bozulunca kayıp mesajı, uyarı ya da kırmızı gösterge; "Serin bozulmak üzere" gibi hatırlatmalar; seriyi bir ödülün şartı yapmak
@@ -76,7 +76,7 @@ Mevcut arayüz metinleri bu tonla yazıldı. Gerekçe olmadan yeniden yazma ya d
 - **Yazı.** Piksel yazı tipi yalnızca başlıklarda ve kısa etiketlerde kullanılır; gövde metni okunaklı bir sans ile yazılır. Yazı tipini eklemeden önce lisansını kontrol et.
 - **Piksel netliği.** 16×16 ızgara (simgeler 8×8). Sprite'lar kodla üretilir (`scene.js`, `app.js` içindeki harf dizileri), `image-rendering: pixelated` ile çizilir.
 - **Sakin hareket.** Animasyonlar yavaş ve küçüktür; `prefers-reduced-motion` açıkken durur. Konfeti, zıplayan ödül efekti ya da yanıp sönen bildirim yok.
-- **Avatarlar.** Listede ve sohbette hâlâ vektör avatarlar var; sahnede piksel karakterler. Avatarların piksel sanata geçişi ayrı bir iş.
+- **Karakterler.** Her yerde aynı piksel karakter (`characters.js`); görünüm ten, saç rengi, saç stili ve kıyafetten oluşur. Sahne gerçek saate göre gün döngüsüne girer.
 
 ## Kural 3: Her değişikliği küçük parçalar halinde onaya sun
 

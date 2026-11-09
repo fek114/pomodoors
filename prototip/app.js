@@ -1,13 +1,17 @@
 // PomoDoors · oda.
 // Oda durumu, katılımlar, ödüller ve sohbet Supabase'te tutulur (net.js); kurallar sunucuda uygulanır.
 // Bu dosya arayüzü çizer ve sunucudan gelen durumu yerel aşama akışına çevirir.
-// Avatar seti avatars.js, bahçe sahnesi scene.js içinde.
+// Piksel karakterler characters.js, bahçe sahnesi scene.js, metinler i18n.js içinde.
+// Oda saat ayarlıdır: her :00 ve :30'da 25 dk odak, ardından 5 dk mola.
 
-const BREAK_MINUTES = 5;
+// Odak ve mola süreleri odanın satırından gelir (sunucu). Gerçek düzen 25 + 5 dk; test modunda kısaltılabilir.
+const timing = { focus: 1500, brk: 300, dev: false };
+const focusMs = () => timing.focus * 1000;
+const cycleMs = () => (timing.focus + timing.brk) * 1000;
 const MAX_INTENT = 80;
 // İlk kişi her zaman kullanıcının kendisi; diğerleri odaya bağlanınca presence ile gelir.
 const people = [
-  { id: 'me', name: 'Sen', avatar: 'gozluklu', intent: '' },
+  { id: 'me', name: 'Sen', look: { ...DEFAULT_LOOK }, intent: '' },
 ];
 const me = people[0];
 const personById = (id) => people.find((person) => person.id === id);
@@ -17,8 +21,8 @@ const messages = [];
 
 const state = {
   view: 'room',         // 'room' | 'profile'
-  phase: 'waiting',     // 'waiting' | 'focus' | 'break'
-  duration: 25,         // seçili odak süresi (dk)
+  phase: 'waiting',     // 'focus' | 'break' ('waiting' yalnızca bağlanana kadar)
+  duration: 25,
   phaseTotal: 0,        // aktif aşamanın toplam süresi (sn)
   endsAt: 0,            // aktif aşamanın bitiş zamanı (ms)
   participation: 'in',  // bu odak turunda: 'in' katılıyor | 'none' henüz katılmadı | 'left' ayrıldı
@@ -28,8 +32,9 @@ const state = {
   turnIntent: '',
   summary: null,        // yalnızca önceki tura katılan kullanıcı için { kind, minutes, intent, reward }
   sound: false,
-  room: { startedIso: null, startedAt: 0, minutes: 25 },  // sunucudaki oda satırı
-  turnStart: 0,         // yerelde işlenen turun başlangıcı (sunucu saati, ms)
+  turnStart: 0,         // içinde bulunulan 30 dk'lık dilimin başlangıcı (sunucu saati, ms)
+  autoJoin: true,       // molada: sıradaki tura otomatik katıl
+  seedKind: 0,          // molada ekilecek tohum çeşidi
   myPart: null,         // bu turdaki katılım satırı
   online: false,
 };
@@ -50,6 +55,8 @@ const game = {
   roomWeekMinutes: 0,   // ortak bahçe: odadakilerin bu hafta birlikte topladığı dakikalar
   growthCarry: 0,       // bir sonraki büyüme adımına biriken dakikalar
   garden: [],
+  gardenKinds: [],
+  seeds: {},            // tohum kesesi: { çeşit: adet }
   show: { garden: true, xp: true, streak: true, board: true, ...readShow() },
 };
 
@@ -129,23 +136,11 @@ const FOCUS_STATUS = { in: 'focus', none: 'none', left: 'left' };
 const statusLabel = (status, mine = false) =>
   (mine && (status === 'left' || status === 'none') ? t(`mystatus.${status}`) : t(`status.${status}`));
 
-// Planlı ortak turlar: her gün bu UTC saatlerinde (İstanbul 10:00, 14:00, 21:00) 25 dk'lık tur kendiliğinden başlar.
-const SCHEDULED_UTC_HOURS = [7, 11, 18];
+// Saat ayarlı oda: dilim başlangıcı her :00 ve :30.
+const slotStart = (at) => Math.floor(at / cycleMs()) * cycleMs();
 
-function nextScheduledTurn(at = serverNow()) {
-  const day = new Date(at);
-  for (let offset = 0; offset < 2; offset += 1) {
-    for (const hour of SCHEDULED_UTC_HOURS) {
-      const candidate = Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate() + offset, hour);
-      if (candidate > at) return candidate; // duvar saati; gösterirken kaydırılmaz
-    }
-  }
-  return null;
-}
-
-const scheduleTimesText = () => SCHEDULED_UTC_HOURS
-  .map((hour) => clockAt(Date.UTC(2026, 0, 1, hour)))
-  .join(', ');
+// Süre metni: tam dakikaysa dakika, değilse saniye (test modundaki kısa turlar için).
+const durationText = (seconds) => (seconds % 60 === 0 ? t('time.min', { n: seconds / 60 }) : t('time.sec', { n: seconds }));
 
 const ICONS = {
   waiting: '<circle cx="8" cy="8" r="5.5"/><path d="M8 5.2V8l1.8 1.3"/>',
@@ -171,8 +166,10 @@ const els = {
   startForm: $('startForm'),
   intentInput: $('intentInput'),
   intentCount: $('intentCount'),
-  durations: $('durations'),
-  durationInputs: document.querySelectorAll('input[name="duration"]'),
+  intentLabel: $('intentLabel'),
+  autoJoin: $('autoJoin'),
+  autoJoinRow: $('autoJoinRow'),
+  autoJoinText: $('autoJoinText'),
   startBtn: $('startBtn'),
   startNote: $('startNote'),
   myIntent: $('myIntent'),
@@ -194,9 +191,21 @@ const els = {
   composer: $('composer'),
   msgInput: $('msgInput'),
   sendBtn: $('sendBtn'),
-  avatarGrid: $('avatarGrid'),
+  lookEditor: $('lookEditor'),
+  lookBig: $('lookBig'),
   profilePreview: $('profilePreview'),
-  avatarLabel: $('avatarLabel'),
+  seedsSection: $('seedsSection'),
+  seedList: $('seedList'),
+  treeText: $('treeText'),
+  ambientSelect: $('ambientSelect'),
+  tourDialog: $('tourDialog'),
+  tourStep: $('tourStep'),
+  tourTitle: $('tourTitle'),
+  tourText: $('tourText'),
+  tourSkip: $('tourSkip'),
+  tourNext: $('tourNext'),
+  devBar: $('devBar'),
+  devButtons: document.querySelectorAll('[data-timing]'),
   profileDone: $('profileDone'),
   leaveDialog: $('leaveDialog'),
   leaveMinutes: $('leaveMinutes'),
@@ -210,7 +219,6 @@ const els = {
   joinBtn: $('joinBtn'),
   joinError: $('joinError'),
   communalText: $('communalText'),
-  joinSchedule: $('joinSchedule'),
   langToggle: $('langToggle'),
   emoteButtons: document.querySelectorAll('[data-emote]'),
   stats: $('stats'),
@@ -220,6 +228,8 @@ const els = {
   gameToggles: document.querySelectorAll('[data-game]'),
 };
 
+// Ekranda gösterilen saatler sunucu saatidir (duvar saati); yerel saat farkı geri eklenir.
+const wallClock = (localMs) => clockAt(localMs + net.offset);
 const clockAt = (ms) => new Intl.DateTimeFormat(lang === 'tr' ? 'tr-TR' : 'en-GB', { hour: '2-digit', minute: '2-digit' }).format(new Date(ms));
 const minutesText = (minutes) => (minutes < 1 ? t('time.short') : t('time.min', { n: minutes }));
 const remainingSeconds = () => Math.max(0, Math.ceil((state.endsAt - Date.now()) / 1000));
@@ -228,7 +238,7 @@ const focusedMinutesSoFar = () =>
 
 const icon = (name) =>
   `<svg class="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;
-const avatarMarkup = (id) => `<span class="avatar">${avatarSvg(id)}</span>`;
+const avatarMarkup = (look) => `<span class="avatar avatar-pixel">${portraitSvg(look)}</span>`;
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -249,19 +259,7 @@ const serverNow = () => Date.now() + net.offset;
 const toLocal = (serverMs) => serverMs - net.offset;
 
 function roomPhase(at = serverNow()) {
-  const { startedAt, minutes } = state.room;
-  if (!startedAt) return 'waiting';
-  if (at < startedAt + minutes * 60000) return 'focus';
-  if (at < startedAt + (minutes + BREAK_MINUTES) * 60000) return 'break';
-  return 'waiting';
-}
-
-function setRoom(row) {
-  state.room = {
-    startedIso: row.started_at,
-    startedAt: row.started_at ? Date.parse(row.started_at) : 0,
-    minutes: row.focus_minutes,
-  };
+  return at - slotStart(at) < focusMs() ? 'focus' : 'break';
 }
 
 function applyParticipation(part) {
@@ -281,37 +279,34 @@ function applyParticipation(part) {
 
 function syncPhase({ silent = false } = {}) {
   const phase = roomPhase();
-  const newTurn = phase === 'focus' && state.room.startedAt !== state.turnStart;
+  const newTurn = slotStart(serverNow()) !== state.turnStart;
   if (phase !== state.phase || newTurn) enterPhase(phase, { silent });
 }
 
 function enterPhase(phase, { silent = false } = {}) {
-  const { startedAt, minutes } = state.room;
-  const previousTurn = state.turnStart;
+  const slot = slotStart(serverNow());
+  const newTurn = slot !== state.turnStart;
+  const wasHere = state.phase === 'break' && !silent;
   state.phase = phase;
+  state.turnStart = slot;
 
   if (phase === 'focus') {
-    state.turnStart = startedAt;
-    state.duration = minutes;
-    state.phaseTotal = minutes * 60;
-    state.endsAt = toLocal(startedAt + minutes * 60000);
+    state.phaseTotal = timing.focus;
+    state.endsAt = toLocal(slot + focusMs());
     state.summary = null;
-    if (previousTurn !== startedAt) {
-      applyParticipation(state.myPart && state.myPart.turn_started_at === state.room.startedIso ? state.myPart : null);
-      loadParticipation();
+    if (newTurn) {
+      applyParticipation(null);
+      // Molada "sıradaki tura katıl" seçiliyse tur başlar başlamaz katılınır; yoksa kayıt yoklanır.
+      if (wasHere && state.autoJoin) startOrJoin();
+      else loadParticipation();
     }
-  } else if (phase === 'break') {
-    state.turnStart = startedAt;
-    state.phaseTotal = BREAK_MINUTES * 60;
-    state.endsAt = toLocal(startedAt + (minutes + BREAK_MINUTES) * 60000);
-    messages.length = 0;
-    loadBreak();
   } else {
-    state.phaseTotal = 0;
-    state.summary = null;
+    state.phaseTotal = timing.brk;
+    state.endsAt = toLocal(slot + cycleMs());
     messages.length = 0;
-    // Niyetler yeni tura taşınmaz.
+    // Niyetler yeni tura taşınmaz; molada sıradaki tur için yeniden yazılır.
     clearMyIntent();
+    loadBreak();
   }
 
   render();
@@ -319,10 +314,10 @@ function enterPhase(phase, { silent = false } = {}) {
 }
 
 async function loadParticipation() {
-  const iso = state.room.startedIso;
+  const slot = state.turnStart;
   try {
-    const part = await net.loadParticipation(iso);
-    if (state.room.startedIso === iso) {
+    const part = await net.loadParticipation(new Date(slot).toISOString());
+    if (state.turnStart === slot) {
       applyParticipation(part);
       render();
     }
@@ -333,8 +328,7 @@ async function loadParticipation() {
 
 // Molada: önceki tura katılan kullanıcının ödülü sunucuda hesaplanır, sonra sohbet yüklenir.
 async function loadBreak() {
-  const { startedAt, minutes } = state.room;
-  const breakIso = new Date(startedAt + minutes * 60000).toISOString();
+  const breakIso = new Date(state.turnStart + focusMs()).toISOString();
   try {
     const [reward, rows] = await Promise.all([net.claimReward(), net.loadMessages(breakIso)]);
     if (reward) {
@@ -355,19 +349,21 @@ async function loadBreak() {
 
 function addMessage(row) {
   if (messages.some((message) => message.id === row.id)) return;
-  messages.push({ id: row.id, author: row.user_id, name: row.nickname, avatar: row.avatar, text: row.body });
+  messages.push({ id: row.id, author: row.user_id, name: row.nickname, look: row.look, text: row.body });
 }
 
 function applyProfile(profile) {
   me.id = profile.id;
   me.name = profile.nickname;
-  me.avatar = profile.avatar;
+  me.look = normalizeLook(profile.look);
   game.xp = profile.xp;
   game.leaves = profile.leaves;
   game.streak = profile.streak;
   game.weekMinutes = profile.week_minutes;
   game.growthCarry = profile.growth_carry;
   game.garden = [...profile.garden];
+  game.gardenKinds = [...(profile.garden_kinds || [])];
+  game.seeds = { ...(profile.seeds || {}) };
 }
 
 async function refreshProfile() {
@@ -376,24 +372,13 @@ async function refreshProfile() {
   game.roomWeekMinutes = week;
 }
 
+// Kalan süreye katılma ya da tura geri dönme. Ortak zamanlayıcıya dokunmaz.
 async function startOrJoin() {
+  if (roomPhase() !== 'focus' || state.participation === 'in') return;
   try {
-    if (roomPhase() === 'waiting') {
-      const room = await net.startTurn(state.duration, me.intent);
-      setRoom(room);
-      // Aynı anda başka biri başlattıysa kullanıcı kalan süreye katılma seçeneğini görür.
-      if (room.started_by === me.id) {
-        applyParticipation({
-          turn_started_at: room.started_at, joined_at: room.started_at, left_at: null,
-          late: false, focused_seconds: 0, intent: me.intent,
-        });
-        state.myPart.turn_started_at = room.started_at;
-      }
-      syncPhase();
-    } else if (state.phase === 'focus' && state.participation !== 'in') {
-      applyParticipation(await net.joinTurn(me.intent));
-      render();
-    }
+    applyParticipation(await net.joinTurn(me.intent));
+    state.turnIntent = state.myPart?.intent || me.intent;
+    render();
   } catch (error) {
     console.error(error);
     showToast(t('toast.error'));
@@ -412,7 +397,6 @@ async function leaveTurn() {
 function tick() {
   if (!state.online) return;
   syncPhase();
-  if (state.phase === 'waiting') return;
   renderClock(remainingSeconds());
 }
 
@@ -460,18 +444,18 @@ function render() {
   document.body.dataset.phase = phase;
   els.phaseName.textContent = t(`phase.${phase}`);
   els.phaseDetail.textContent =
-    phase === 'focus' ? t('phase.detailFocus', { n: state.duration })
-      : phase === 'break' ? t('phase.detailBreak', { n: BREAK_MINUTES }) : '';
+    phase === 'focus' ? t('phase.detailFocus', { d: durationText(timing.focus) })
+      : phase === 'break' ? t('phase.detailBreak', { d: durationText(timing.brk) }) : '';
   els.blocks.forEach((node) => { node.hidden = !node.dataset.block.split(' ').includes(block); });
   els.progress.hidden = phase === 'waiting';
   els.timer.classList.toggle('is-idle', block !== 'focus' && block !== 'break');
 
   if (phase === 'waiting') {
-    renderClock(state.duration * 60);
-    els.stageMeta.textContent = t('meta.waiting', { time: clockAt(nextScheduledTurn()) });
+    renderClock(timing.focus);
+    els.stageMeta.textContent = '';
   } else {
     renderClock(remainingSeconds());
-    const end = clockAt(state.endsAt);
+    const end = wallClock(state.endsAt);
     if (phase === 'break') {
       els.stageMeta.textContent = t('meta.break', { time: end });
     } else {
@@ -481,11 +465,17 @@ function render() {
     }
   }
 
-  if (block === 'waiting' || block === 'join') {
+  if (block === 'join' || block === 'break') {
+    // Odakta: kalan süreye katıl. Molada: sıradaki tur için niyet ve otomatik katılım.
     const joining = block === 'join';
-    els.durations.hidden = joining;
-    els.startBtn.textContent = t(joining ? 'start.join' : 'start.button');
-    els.startNote.textContent = t(joining ? 'start.joinNote' : 'start.note');
+    const next = wallClock(state.endsAt);
+    els.intentLabel.textContent = t(joining ? 'intent.label' : 'next.label');
+    els.startBtn.hidden = !joining;
+    els.startBtn.textContent = t('start.join');
+    els.autoJoinRow.hidden = joining;
+    els.autoJoinText.textContent = t('next.autoJoin', { time: next });
+    els.autoJoin.checked = state.autoJoin;
+    els.startNote.textContent = t(joining ? 'start.joinNote' : 'next.autoNote');
   }
   if (block === 'focus') {
     els.myIntent.textContent = state.turnIntent || t('focus.noIntent');
@@ -500,7 +490,7 @@ function render() {
     if (state.summary) renderSummary();
     els.breakNote.textContent = state.summary
       ? t('break.noteIn')
-      : t('break.noteOut');
+      : t('break.noteOut', { time: wallClock(state.endsAt) });
   }
 
   renderPeople();
@@ -509,6 +499,7 @@ function render() {
   renderStats();
   renderGarden();
   renderBoard();
+  renderSeeds();
   renderEmotes();
   trackPresence();
 }
@@ -529,10 +520,11 @@ function trackPresence() {
   net.track({
     id: me.id,
     name: me.name,
-    avatar: me.avatar,
+    look: me.look,
     status,
     intent: status === 'left' ? '' : (state.phase === 'focus' ? state.turnIntent : me.intent),
     garden: game.show.garden ? game.garden.slice(0, 4) : [],
+    kinds: game.show.garden ? game.gardenKinds.slice(0, 4) : [],
     pos: state.phase === 'focus' ? null : scene.myPosition(),
   });
 }
@@ -599,6 +591,65 @@ function renderBoard() {
   els.communalText.textContent = game.roomWeekMinutes
     ? t('board.text', { n: game.roomWeekMinutes })
     : t('board.empty');
+  // Ortak ağaç sahnede; burada aşaması ve bir sonraki büyümeye kalan süre yazılır.
+  const stage = scene.sharedTreeStage();
+  const nextAt = scene.SHARED_TREE_STEPS[stage + 1];
+  els.treeText.textContent = nextAt
+    ? t('tree.caption', { stage, n: nextAt - game.roomWeekMinutes })
+    : t('tree.full');
+}
+
+/* Tohum kesesi */
+
+const SEED_KINDS = [0, 1, 2, 3, 4];
+const SEED_PRICES = { 0: 0, 1: 15, 2: 30, 3: 20, 4: 40 }; // sunucudaki seed_price ile aynı
+const SEED_ICONS = {
+  0: ['..w.w...', '.wwyww..', '..wyw...', '.ww.ww..', '...g....', '..gg....', '...g....', '........'],
+  1: ['.f.f.f..', '.fffff..', '.fffff..', '..fff...', '...g....', '..gg.g..', '...gg...', '........'],
+  2: ['.y.yy.y.', 'yyBBBBy.', '.yBBBBy.', 'yyBBBBy.', '.yyyyy..', '...g....', '..ggg...', '........'],
+  3: ['..g.g...', '...gg...', '..oooo..', '..ooo...', '..ooo...', '...oo...', '...o....', '........'],
+  4: ['...gg...', '..gggg..', '.ffffff.', '.fwfffw.', '.ffffff.', '..fwff..', '...ff...', '........'],
+};
+const SEED_ICON_COLORS = {
+  0: { w: '#F4F1EA', y: '#E3B458', g: '#4E8F3A' },
+  1: { f: '#D9534F', g: '#4E8F3A' },
+  2: { y: '#E3B458', B: '#6B4526', g: '#4E8F3A' },
+  3: { o: '#E8833A', g: '#4E8F3A' },
+  4: { f: '#D9534F', w: '#F4F1EA', g: '#4E8F3A' },
+};
+
+function seedIcon(kind) {
+  const colors = SEED_ICON_COLORS[kind];
+  let rects = '';
+  SEED_ICONS[kind].forEach((row, y) => {
+    [...row].forEach((ch, x) => {
+      if (colors[ch]) rects += `<rect x="${x}" y="${y}" width="1" height="1" fill="${colors[ch]}"/>`;
+    });
+  });
+  return `<svg class="sprite" viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true" focusable="false">${rects}</svg>`;
+}
+
+function renderSeeds() {
+  els.seedsSection.hidden = !game.show.garden;
+  if (!game.show.garden) return;
+  els.seedList.replaceChildren(...SEED_KINDS.map((kind) => {
+    const owned = game.seeds[kind] || 0;
+    const row = el('li', 'seed-row');
+    const pick = el('label', 'seed-pick');
+    pick.innerHTML = `<input type="radio" name="seedKind" value="${kind}"${state.seedKind === kind ? ' checked' : ''}><span class="seed-icon">${seedIcon(kind)}</span>`;
+    pick.append(el('span', 'seed-name', t(`seed.${kind}`)));
+    const meta = el('span', 'seed-meta', kind === 0 ? t('seeds.free') : t('seeds.owned', { n: owned }));
+    row.append(pick, meta);
+    if (kind > 0) {
+      const buy = el('button', 'btn btn-quiet btn-small seed-buy', t('seeds.buy', { price: SEED_PRICES[kind] }));
+      buy.type = 'button';
+      buy.dataset.buy = kind;
+      buy.disabled = game.leaves < SEED_PRICES[kind];
+      if (buy.disabled) buy.title = t('seeds.notEnough', { price: SEED_PRICES[kind] });
+      row.append(buy);
+    }
+    return row;
+  }));
 }
 
 function statusOf(person) {
@@ -615,7 +666,7 @@ function emptyIntentText(person, status) {
 function personRow(person) {
   const status = statusOf(person);
   const item = el('li', `person is-${status}`);
-  item.innerHTML = avatarMarkup(person.avatar);
+  item.innerHTML = avatarMarkup(person.look);
 
   const chip = el('span', 'status');
   chip.innerHTML = icon(status);
@@ -646,9 +697,9 @@ function renderPeople() {
   els.peopleList.replaceChildren(...people.map(personRow));
 }
 
-function messageRow({ name, avatar, text }) {
+function messageRow({ name, look, text }) {
   const item = el('li', 'message');
-  item.innerHTML = avatarMarkup(AVATAR_BY_ID[avatar] ? avatar : 'gozluklu');
+  item.innerHTML = avatarMarkup(look);
   const body = el('div', 'message-body');
   body.append(el('p', 'message-name', name), el('p', 'message-text', text));
   item.append(body);
@@ -671,7 +722,7 @@ function renderChat() {
     els.messages.replaceChildren(...messages.map(messageRow));
   } else if (state.phase === 'focus') {
     els.lockedTitle.textContent = t('chat.focusTitle');
-    els.lockedText.textContent = t('chat.focusText', { time: clockAt(state.endsAt) });
+    els.lockedText.textContent = t('chat.focusText', { time: wallClock(state.endsAt) });
   } else {
     els.lockedTitle.textContent = t('chat.waitTitle');
     els.lockedText.textContent = t('chat.waitText');
@@ -679,21 +730,46 @@ function renderChat() {
 }
 
 function renderProfile() {
-  const label = avatarLabel(me.avatar);
-  els.meAvatar.innerHTML = avatarMarkup(me.avatar);
-  els.meAvatar.setAttribute('aria-label', t('profile.aria', { name: me.name, label }));
+  els.meAvatar.innerHTML = avatarMarkup(me.look);
+  els.meAvatar.setAttribute('aria-label', t('profile.aria', { name: me.name }));
   els.profilePreview.replaceChildren(personRow(me));
-  els.avatarLabel.textContent = t('profile.selected', { label });
+  els.lookBig.innerHTML = portraitSvg(me.look);
 }
 
-function renderAvatarPicker() {
-  els.avatarGrid.innerHTML = AVATARS.map(({ id }) => `
-    <label class="avatar-option">
-      <input class="visually-hidden" type="radio" name="avatar" value="${id}"${id === me.avatar ? ' checked' : ''}>
-      ${avatarMarkup(id)}
-      <span class="avatar-check" aria-hidden="true">${icon('check')}</span>
-      <span class="visually-hidden">${avatarLabel(id)}</span>
-    </label>`).join('');
+// Karakter düzenleyici: ten, saç rengi, saç stili ve kıyafet. Her seçenek erişilebilir bir radyo düğmesi.
+function renderLookEditor() {
+  const groups = [
+    ['skin', LOOK_PALETTES.skin.length],
+    ['hair', LOOK_PALETTES.hair.length],
+    ['style', LOOK_STYLES],
+    ['shirt', LOOK_PALETTES.shirt.length],
+  ];
+  els.lookEditor.replaceChildren(...groups.map(([group, count]) => {
+    const fieldset = el('fieldset', 'look-group');
+    fieldset.append(el('legend', '', t(`look.${group}`)));
+    const options = el('div', 'look-options');
+    for (let i = 0; i < count; i += 1) {
+      const option = el('label', 'look-option');
+      const input = el('input', 'visually-hidden');
+      input.type = 'radio';
+      input.name = `look-${group}`;
+      input.value = i;
+      input.dataset.group = group;
+      input.checked = me.look[group] === i;
+      const swatch = el('span', 'look-swatch');
+      if (group === 'style') {
+        swatch.classList.add('look-swatch-wide');
+        swatch.innerHTML = portraitSvg({ ...me.look, style: i });
+      } else {
+        swatch.style.background = LOOK_PALETTES[group][i];
+      }
+      const label = group === 'style' ? t(`look.style.${i}`) : t('look.option', { group: t(`look.${group}`), n: i + 1 });
+      option.append(input, swatch, el('span', 'visually-hidden', label));
+      options.append(option);
+    }
+    fieldset.append(options);
+    return fieldset;
+  }));
 }
 
 /* Aşama bildirimi ve isteğe bağlı ses */
@@ -702,7 +778,7 @@ let bannerTimer;
 let audioCtx;
 
 function announcePhase(phase) {
-  els.banner.textContent = t(`announce.${phase}`, { n: state.duration });
+  els.banner.textContent = t(`announce.${phase}`, { d: durationText(timing.focus) });
   els.banner.classList.add('show');
   clearTimeout(bannerTimer);
   bannerTimer = setTimeout(() => els.banner.classList.remove('show'), 4000);
@@ -736,11 +812,8 @@ els.intentInput.addEventListener('input', () => {
   renderPeople();
 });
 
-els.durationInputs.forEach((input) => {
-  input.addEventListener('change', () => {
-    state.duration = Number(input.value);
-    if (state.phase === 'waiting') renderClock(state.duration * 60);
-  });
+els.autoJoin.addEventListener('change', () => {
+  state.autoJoin = els.autoJoin.checked;
 });
 
 els.startForm.addEventListener('submit', (event) => {
@@ -784,10 +857,13 @@ els.composer.addEventListener('submit', (event) => {
   });
 });
 
-els.avatarGrid.addEventListener('change', (event) => {
-  me.avatar = event.target.value;
+els.lookEditor.addEventListener('change', (event) => {
+  const { group } = event.target.dataset;
+  if (!group) return;
+  me.look = normalizeLook({ ...me.look, [group]: Number(event.target.value) });
+  renderLookEditor();
   render();
-  net.updateProfile({ avatar: me.avatar }).catch((error) => console.error(error));
+  net.updateProfile({ look: me.look }).catch((error) => console.error(error));
 });
 
 els.meAvatar.addEventListener('click', () => showView(state.view === 'profile' ? 'room' : 'profile'));
@@ -809,18 +885,192 @@ els.gameToggles.forEach((input) => {
   });
 });
 
-// Molada boş tarha tohum ekme (scene.js çağırır). Arayüz hemen günceller, sunucu doğrular.
+// Molada boş tarha seçili tohumu ekme (scene.js çağırır). Arayüz hemen günceller, sunucu doğrular.
 function onPlantSeed(index) {
+  const kind = state.seedKind;
+  if (kind > 0 && !(game.seeds[kind] > 0)) {
+    scene.showHint(t('seeds.none', { name: t(`seed.${kind}`) }));
+    return;
+  }
   game.garden[index] = 1;
+  game.gardenKinds[index] = kind;
+  if (kind > 0) game.seeds[kind] -= 1;
+  scene.showHint(t('hint.planted'));
   render();
-  net.plantSeed(index).then((garden) => {
-    if (garden) game.garden = [...garden];
+  net.plantSeed(index, kind).then((result) => {
+    game.garden = [...result.garden];
+    game.gardenKinds = [...result.kinds];
+    game.seeds = { ...result.seeds };
     render();
-  }).catch((error) => {
+  }).catch(async (error) => {
     console.error(error);
-    game.garden[index] = 0;
+    await refreshProfile().catch(() => {});
     render();
   });
+}
+
+els.seedList.addEventListener('change', (event) => {
+  if (event.target.name === 'seedKind') state.seedKind = Number(event.target.value);
+});
+
+els.seedList.addEventListener('click', async (event) => {
+  const button = event.target.closest('[data-buy]');
+  if (!button) return;
+  button.disabled = true;
+  try {
+    const result = await net.buySeed(Number(button.dataset.buy));
+    game.leaves = result.leaves;
+    game.seeds = { ...result.seeds };
+    state.seedKind = Number(button.dataset.buy);
+  } catch (error) {
+    console.error(error);
+    showToast(t('seeds.notEnough', { price: SEED_PRICES[button.dataset.buy] }));
+  }
+  render();
+});
+
+/* İlk giriş turu: üç kısa adım, atlanabilir, bir kez gösterilir */
+
+const TOUR_KEY = 'pomodoors.tour';
+const TOUR_STEPS = 3;
+let tourIndex = 0;
+
+function renderTour() {
+  els.tourStep.textContent = t('tour.step', { n: tourIndex + 1, total: TOUR_STEPS });
+  els.tourTitle.textContent = t(`tour.${tourIndex + 1}.title`);
+  els.tourText.textContent = t(`tour.${tourIndex + 1}.text`);
+  els.tourNext.textContent = t(tourIndex === TOUR_STEPS - 1 ? 'tour.done' : 'tour.next');
+}
+
+function maybeShowTour() {
+  try {
+    if (localStorage.getItem(TOUR_KEY)) return;
+  } catch {
+    return;
+  }
+  tourIndex = 0;
+  renderTour();
+  els.tourDialog.showModal();
+}
+
+function closeTour() {
+  try {
+    localStorage.setItem(TOUR_KEY, '1');
+  } catch {
+    // Depolama kapalıysa tur bir dahaki girişte yeniden gösterilir.
+  }
+  els.tourDialog.close();
+}
+
+els.tourNext.addEventListener('click', () => {
+  if (tourIndex < TOUR_STEPS - 1) {
+    tourIndex += 1;
+    renderTour();
+  } else {
+    closeTour();
+  }
+});
+els.tourSkip.addEventListener('click', closeTour);
+els.tourDialog.addEventListener('cancel', closeTour);
+
+/* Ortam sesi: tarayıcıda üretilir, dosya yok. Varsayılan kapalı, düşük ses. */
+
+const AMBIENT_KEY = 'pomodoors.ambient';
+let ambient = { kind: 'off', nodes: [], timer: 0 };
+
+function noiseBuffer(ctx, seconds, brown = false) {
+  const buffer = ctx.createBuffer(1, ctx.sampleRate * seconds, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  let last = 0;
+  for (let i = 0; i < data.length; i += 1) {
+    const white = Math.random() * 2 - 1;
+    last = brown ? (last + 0.02 * white) / 1.02 : white;
+    data[i] = brown ? last * 3.5 : white;
+  }
+  return buffer;
+}
+
+function stopAmbient() {
+  clearTimeout(ambient.timer);
+  ambient.nodes.forEach((node) => { try { node.stop?.(); node.disconnect(); } catch { /* zaten durdu */ } });
+  ambient = { kind: 'off', nodes: [], timer: 0 };
+}
+
+function startAmbient(kind) {
+  stopAmbient();
+  if (kind === 'off') return;
+  audioCtx ??= new (window.AudioContext || window.webkitAudioContext)();
+  audioCtx.resume();
+  const ctx = audioCtx;
+  const out = ctx.createGain();
+  out.gain.value = 0.0001;
+  out.gain.exponentialRampToValueAtTime(kind === 'birds' ? 0.5 : 0.05, ctx.currentTime + 1.5);
+  out.connect(ctx.destination);
+  ambient = { kind, nodes: [out], timer: 0 };
+
+  if (kind === 'rain' || kind === 'fire') {
+    const source = ctx.createBufferSource();
+    source.buffer = noiseBuffer(ctx, 4, kind === 'fire');
+    source.loop = true;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = kind === 'rain' ? 1400 : 500;
+    source.connect(filter).connect(out);
+    source.start();
+    ambient.nodes.push(source, filter);
+  }
+
+  // Kuş cıvıltısı ya da şömine çıtırtısı: rastgele aralıklarla kısa sesler.
+  const sparkle = () => {
+    if (ambient.kind !== kind) return;
+    const t0 = ctx.currentTime;
+    if (kind === 'birds') {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.frequency.setValueAtTime(2200 + Math.random() * 800, t0);
+      osc.frequency.exponentialRampToValueAtTime(3200 + Math.random() * 900, t0 + 0.09);
+      gain.gain.setValueAtTime(0.0001, t0);
+      gain.gain.exponentialRampToValueAtTime(0.06, t0 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.14);
+      osc.connect(gain).connect(out);
+      osc.start(t0);
+      osc.stop(t0 + 0.16);
+    } else if (kind === 'fire') {
+      const pop = ctx.createBufferSource();
+      pop.buffer = noiseBuffer(ctx, 0.03);
+      const gain = ctx.createGain();
+      gain.gain.value = 0.4 + Math.random() * 0.4;
+      pop.connect(gain).connect(out);
+      pop.start(t0);
+    }
+    const wait = kind === 'birds' ? 1500 + Math.random() * 4500 : 120 + Math.random() * 900;
+    ambient.timer = setTimeout(sparkle, wait);
+  };
+  if (kind === 'birds' || kind === 'fire') sparkle();
+}
+
+els.ambientSelect.addEventListener('change', () => {
+  const kind = els.ambientSelect.value;
+  try {
+    localStorage.setItem(AMBIENT_KEY, kind);
+  } catch {
+    // Tercih bu oturumla sınırlı kalır.
+  }
+  startAmbient(kind);
+});
+
+// Kayıtlı ortam sesi, tarayıcı izin verdiği için ilk dokunuşta başlar.
+function restoreAmbient() {
+  let saved = 'off';
+  try {
+    saved = localStorage.getItem(AMBIENT_KEY) || 'off';
+  } catch {
+    saved = 'off';
+  }
+  els.ambientSelect.value = saved;
+  if (saved === 'off') return;
+  const begin = () => startAmbient(els.ambientSelect.value);
+  window.addEventListener('pointerdown', begin, { once: true });
 }
 
 /* Oda bağlantısı */
@@ -832,8 +1082,8 @@ function onPresence(presence) {
   const kept = others.map((entry) => {
     const person = personById(entry.id) || { id: entry.id };
     return Object.assign(person, {
-      name: entry.name, avatar: AVATAR_BY_ID[entry.avatar] ? entry.avatar : 'gozluklu',
-      status: entry.status, intent: entry.intent || '', garden: entry.garden || [],
+      name: entry.name, look: normalizeLook(entry.look),
+      status: entry.status, intent: entry.intent || '', garden: entry.garden || [], kinds: entry.kinds || [],
       pos: person.pos || entry.pos || null,
     });
   });
@@ -868,17 +1118,41 @@ els.emoteButtons.forEach((button) => {
 
 els.langToggle.addEventListener('click', () => {
   setLang(lang === 'tr' ? 'en' : 'tr');
-  els.joinSchedule.textContent = t('join.schedule', { times: scheduleTimesText() });
   els.soundState.textContent = t(state.sound ? 'sound.on' : 'sound.off');
-  renderAvatarPicker();
+  renderLookEditor();
+  if (els.tourDialog.open) renderTour();
   lastClock = '';
   render();
 });
 
-function onRoom(row) {
-  setRoom(row);
-  syncPhase();
+function setTiming(row) {
+  timing.focus = row.focus_seconds;
+  timing.brk = row.break_seconds;
+  timing.dev = row.dev_mode;
+  els.devBar.hidden = !timing.dev;
+  els.devButtons.forEach((button) => {
+    button.setAttribute('aria-pressed', String(button.dataset.timing === `${timing.focus},${timing.brk}`));
+  });
 }
+
+function onRoom(row) {
+  setTiming(row);
+  syncPhase();
+  render();
+}
+
+// Test modu: süreleri herkes için değiştirir. Yalnızca odada dev_mode açıkken çalışır (sunucu denetler).
+els.devBar.addEventListener('click', async (event) => {
+  const button = event.target.closest('[data-timing]');
+  if (!button) return;
+  const [focus, brk] = button.dataset.timing.split(',').map(Number);
+  try {
+    onRoom(await net.setRoomTiming(focus, brk));
+  } catch (error) {
+    console.error(error);
+    showToast(t('toast.error'));
+  }
+});
 
 function onMessage(row) {
   if (state.phase !== 'break') return;
@@ -894,17 +1168,16 @@ async function enterRoom(profile) {
   document.body.classList.remove('is-joining');
   await net.syncClock();
   const [room, week] = await Promise.all([net.loadRoom(), net.weekMinutes()]);
-  setRoom(room);
+  setTiming(room);
   game.roomWeekMinutes = week;
-  if (room.started_at) applyParticipation(await net.loadParticipation(room.started_at));
   state.online = true;
-  state.turnStart = roomPhase() === 'waiting' ? 0 : state.room.startedAt;
-  renderAvatarPicker();
+  renderLookEditor();
   enterPhase(roomPhase(), { silent: true });
   net.connect({ presence: onPresence, move: onMove, emote: onEmote, room: onRoom, message: onMessage, ready: trackPresence });
   scene.init();
   setInterval(tick, 250);
   document.addEventListener('visibilitychange', tick);
+  maybeShowTour();
 }
 
 function showJoin(message = '') {
@@ -923,13 +1196,13 @@ els.joinForm.addEventListener('submit', async (event) => {
   els.joinBtn.disabled = true;
   try {
     if (!net.userId) await net.signIn();
-    const avatar = AVATARS[Math.floor(Math.random() * AVATARS.length)].id;
+    const look = randomLook();
     let profile = await net.loadProfile();
     if (!profile) {
       // Saklı oturum artık geçerli değilse (ör. kullanıcı silindiyse) yeni bir anonim oturum açılır.
-      profile = await net.createProfile(nickname, avatar).catch(async () => {
+      profile = await net.createProfile(nickname, look).catch(async () => {
         await net.signIn();
-        return net.createProfile(nickname, avatar);
+        return net.createProfile(nickname, look);
       });
     }
     await enterRoom(profile);
@@ -945,8 +1218,8 @@ els.joinForm.addEventListener('submit', async (event) => {
 
 async function boot() {
   applyStaticText();
-  els.joinSchedule.textContent = t('join.schedule', { times: scheduleTimesText() });
   els.soundState.textContent = t('sound.off');
+  restoreAmbient();
   render();
   try {
     const userId = await net.restoreSession();

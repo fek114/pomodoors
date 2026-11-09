@@ -47,7 +47,9 @@ const scene = (() => {
   ];
 
   const CABIN = { x: 5, y: 0, w: 5, h: 4 };
-  const TREES = [[1, 0], [11, 0], [18, 0], [0, 9]];
+  const TREES = [[1, 0], [18, 0], [0, 9]];
+  const SHARED_TREE = [11, 0]; // ortak ağaç: odanın haftalık toplam dakikasıyla büyür
+  const SHARED_TREE_STEPS = [0, 60, 200, 500, 1000, 2000];
   const BUSHES = [[4, 2], [10, 3], [19, 4], [9, 10], [15, 10]];
   const BENCH = [11, 4];
   const FENCE_Y = 11;
@@ -63,36 +65,7 @@ const scene = (() => {
   const GATHER_SPOTS = [[9, 4.9], [10.4, 5.5], [12.6, 5.4], [16.8, 5.3], [9.8, 6.6], [12, 6.6], [14.2, 6.6], [16.4, 6.6]];
   const extraSpot = (i) => [3 + (i % 10) * 1.6, 5.4 + Math.floor(i / 10) * 0.5];
 
-  // Karakter sprite'ları. o çizgi, h saç, k ten, e göz, s gömlek, p pantolon, b ayakkabı
-  const BODY = {
-    8: '....osssssso....',
-    9: '...osssssssso...',
-    10: '...okssssssko...',
-    11: '....osssssso....',
-  };
-  const LEGS = [
-    { 12: '....oppppppo....', 13: '....opp..ppo....', 14: '....obb..bbo....' },
-    { 12: '....oppppppo....', 13: '...opp....ppo...', 14: '...obb....bbo...' },
-  ];
-  const HEADS = {
-    down: {
-      1: '.....oooooo.....', 2: '....ohhhhhho....', 3: '...ohhhhhhhho...', 4: '...ohhhhhhhho...',
-      5: '...ohkkkkkkho...', 6: '...okkekkekko...', 7: '....okkkkkko....',
-    },
-    up: {
-      1: '.....oooooo.....', 2: '....ohhhhhho....', 3: '...ohhhhhhhho...', 4: '...ohhhhhhhho...',
-      5: '...ohhhhhhhho...', 6: '...ohhhhhhhho...', 7: '....ohhhhhho....',
-    },
-    side: {
-      1: '.....oooooo.....', 2: '....ohhhhhho....', 3: '...ohhhhhhhho...', 4: '...ohhhhhhhho...',
-      5: '...ohhhhkkkko...', 6: '...ohhhkkkeko...', 7: '....ohhkkkko....',
-    },
-  };
-  const spriteRows = (head, frame) => Array.from({ length: 16 }, (_, i) =>
-    HEADS[head][i] || BODY[i] || LEGS[frame][i] || '................');
-
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
-  const darkMode = matchMedia('(prefers-color-scheme: dark)');
 
   let canvas;
   let ctx;
@@ -221,7 +194,7 @@ const scene = (() => {
     // Pencereler
     [x + 13, x + 53].forEach((wx) => {
       rect(g, wx - 1, y + 41, 16, 12, C.woodDark);
-      rect(g, wx + 1, y + 43, 12, 8, darkMode.matches ? C.glassLit : C.glass);
+      rect(g, wx + 1, y + 43, 12, 8, dayPart().lit ? C.glassLit : C.glass);
       rect(g, wx + 6, y + 43, 1, 8, C.woodDark);
       rect(g, wx + 1, y + 46, 12, 1, C.woodDark);
       // Saksı ve çiçekler
@@ -259,6 +232,38 @@ const scene = (() => {
         else if (px - cx + py - cy < -9) color = C.leafLight;
         else if (hash(tx * 40 + px, ty * 40 + py, 3) > 0.86) color = C.leafDark;
         else if (hash(tx * 40 + px, ty * 40 + py, 4) > 0.9) color = C.leafLight;
+        rect(g, x + px, y + py, 1, 1, color);
+      }
+    }
+  }
+
+  // Ortak ağaç: küçük bir fidandan çiçek açmış büyük bir ağaca kadar altı aşama.
+  function sharedTreeStage() {
+    let stage = 0;
+    SHARED_TREE_STEPS.forEach((min, i) => { if (game.roomWeekMinutes >= min) stage = i; });
+    return stage;
+  }
+
+  function sharedTree(g) {
+    const stage = sharedTreeStage();
+    const [tx, ty] = SHARED_TREE;
+    const x = tx * T;
+    const y = ty * T;
+    const radius = [3, 6, 8, 10, 12, 13][stage];
+    const trunkTop = 31 - Math.max(4, Math.round(radius * 0.9));
+    rect(g, x + 16 - radius, y + 29, radius * 2, 3, C.shadow);
+    rect(g, x + 15, y + trunkTop, stage ? 3 : 2, 31 - trunkTop, C.trunk);
+    const cx = 16;
+    const cy = trunkTop - radius + 3;
+    for (let py = 0; py < 32; py += 1) {
+      for (let px = 0; px < 32; px += 1) {
+        const d = Math.hypot(px - cx, (py - cy) * 1.1);
+        if (d > radius) continue;
+        let color = C.leaf;
+        if (d > radius - 1) color = C.leafDark;
+        else if (px - cx + py - cy < -radius * 0.6) color = C.leafLight;
+        else if (hash(px, py, 21) > 0.88) color = C.leafDark;
+        if (stage >= 4 && hash(px, py, 22) > (stage === 5 ? 0.86 : 0.94)) color = C.petal3;
         rect(g, x + px, y + py, 1, 1, color);
       }
     }
@@ -317,7 +322,7 @@ const scene = (() => {
   for (let ty = CABIN.y; ty < CABIN.y + CABIN.h; ty += 1) {
     for (let tx = CABIN.x; tx < CABIN.x + CABIN.w; tx += 1) block(tx, ty);
   }
-  TREES.forEach(([tx, ty]) => { block(tx, ty + 1); block(tx + 1, ty + 1); block(tx, ty); block(tx + 1, ty); });
+  [...TREES, SHARED_TREE].forEach(([tx, ty]) => { block(tx, ty + 1); block(tx + 1, ty + 1); block(tx, ty); block(tx + 1, ty); });
   BUSHES.forEach(([tx, ty]) => block(tx, ty));
   block(...BENCH);
   for (let tx = FENCE_FROM; tx < COLS; tx += 1) block(tx, FENCE_Y);
@@ -354,18 +359,45 @@ const scene = (() => {
     bench(g, ...BENCH);
     cabin(g);
     TREES.forEach(([tx, ty]) => tree(g, tx, ty));
+    sharedTree(g);
   }
 
   /* Bitkiler */
 
-  const PLANT_COLORS = { g: C.leaf, G: C.leafDark, s: C.leafDark, f: C.petal, y: C.gold, b: C.woodDark };
+  // Tohum çeşitleri: ilk üç aşama hepsinde aynı, olgun hali çeşide göre değişir.
+  const KIND_COLORS = [
+    { f: '#F4F1EA', y: C.gold },          // 0 papatya
+    { f: '#D9534F', y: '#B23A36' },       // 1 lale
+    { f: C.gold, y: '#6B4526' },          // 2 ayçiçeği
+    { f: '#E8833A', y: '#E8833A' },       // 3 havuç
+    { f: '#D9534F', y: '#F4F1EA' },       // 4 çilek
+  ];
+  const BASE_COLORS = { g: C.leaf, G: C.leafDark, s: C.leafDark, b: C.woodDark };
 
-  function drawPlant(stage, tx, ty) {
+  function matureRows(kind) {
+    const base = [...PLANT_SPRITES[3]];
+    if (kind === 1) {
+      return Object.assign(base, { 1: '......f.f.f.....', 2: '......fffff.....', 3: '......fyfff.....', 4: '.......fff......', 5: '........s.......' });
+    }
+    if (kind === 2) {
+      return Object.assign(base, { 0: '......f.ff.f....', 1: '.....fffffff....', 2: '....ffyyyyyff...', 3: '.....fyyyyyf....', 4: '....ffyyyyyff...', 5: '......fffff.....' });
+    }
+    if (kind === 3) {
+      return Object.assign(base, { 3: '......g.g.g.....', 11: '.......ff.......' });
+    }
+    if (kind === 4) {
+      return Object.assign(base, { 7: '..gfGg..s.gGfg..', 8: '...gGGgss.gfg...', 9: '......f.s.f.....' });
+    }
+    return [...PLANT_SPRITES[4]];
+  }
+
+  function drawPlant(stage, tx, ty, kind = 0) {
     if (!stage) return;
-    const rows = PLANT_SPRITES[stage];
+    const rows = stage === MAX_STAGE ? matureRows(kind) : PLANT_SPRITES[stage];
+    const colors = { ...BASE_COLORS, ...(KIND_COLORS[kind] || KIND_COLORS[0]) };
     rows.forEach((row, py) => {
       for (let px = 0; px < row.length; px += 1) {
-        const color = PLANT_COLORS[row[px]];
+        const color = colors[row[px]];
         if (color) rect(ctx, tx * T + px, ty * T + py - 2, 1, 1, color);
       }
     });
@@ -391,29 +423,16 @@ const scene = (() => {
 
   function drawPlants(garden) {
     if (game.show.garden) {
-      garden.slice(0, MY_PLOT.cols * MY_PLOT.rows).forEach((stage, i) => drawPlant(stage, ...plotTile(i)));
+      garden.slice(0, MY_PLOT.cols * MY_PLOT.rows)
+        .forEach((stage, i) => drawPlant(stage, ...plotTile(i), game.gardenKinds[i] || 0));
     }
     people.slice(1, 1 + OTHER_PLOT_X.length).forEach((person, slot) => {
       (person.garden || []).slice(0, 4).forEach((stage, i) =>
-        drawPlant(stage, OTHER_PLOT_X[slot] + (i % 2), OTHER_PLOT_Y + Math.floor(i / 2)));
+        drawPlant(stage, OTHER_PLOT_X[slot] + (i % 2), OTHER_PLOT_Y + Math.floor(i / 2), (person.kinds || [])[i] || 0));
     });
   }
 
   /* Karakterler */
-
-  function paletteFor(person) {
-    const avatar = AVATAR_BY_ID[person.avatar];
-    const [, hairColor] = avatar.hair ?? [];
-    return {
-      o: C.outline,
-      h: hairColor ? AV_HAIR[hairColor] : C.door,
-      k: AV_SKIN[avatar.skin],
-      e: C.outline,
-      s: AV_SHIRT[avatar.shirt],
-      p: C.pants,
-      b: C.woodDark,
-    };
-  }
 
   function targetFor(person) {
     const status = statusOf(person);
@@ -534,11 +553,12 @@ const scene = (() => {
   }
 
   function drawCharacter(person, actor) {
-    const palette = paletteFor(person);
+    const look = normalizeLook(person.look);
+    const palette = characterPalette(look);
     const frame = actor.moving ? Math.floor(actor.walk / 0.16) % 2 : 0;
     const working = statusOf(person) === 'focus' && !actor.moving && !reduceMotion.matches;
     const bob = working && Math.floor(clock / 0.7) % 2 ? 1 : 0;
-    const rows = spriteRows(actor.dir, frame);
+    const rows = characterRows(look, actor.dir, frame);
     const left = Math.round(actor.x * T) - 8;
     const top = Math.round(actor.y * T) - 15 + bob;
     ctx.globalAlpha = statusOf(person) === 'left' ? 0.55 : 1;
@@ -678,7 +698,6 @@ const scene = (() => {
       showHint(t('hint.occupied', { name: t(`stageName.${game.garden[index]}`) }));
       return;
     }
-    showHint(t('hint.planted'));
     onPlantSeed(index);
   }
 
@@ -694,10 +713,12 @@ const scene = (() => {
     lastTime = time;
     clock += dt;
 
-    const key = `${darkMode.matches}|${game.show.garden}`;
+    const part = dayPart();
+    const key = `${part.name}|${game.show.garden}|${sharedTreeStage()}`;
     if (key !== staticKey) {
       drawStatic();
       staticKey = key;
+      wrap.style.background = part.edge;
     }
     updateActors(dt);
 
@@ -710,9 +731,9 @@ const scene = (() => {
       .sort((a, b) => a[1].y - b[1].y)
       .forEach(([person, actor]) => drawCharacter(person, actor));
 
-    if (darkMode.matches) {
-      // Gece: sahne kararır, pencereler yanık kalır.
-      rect(ctx, 0, 0, W, H, 'rgba(18, 22, 52, .38)');
+    if (part.tint) rect(ctx, 0, 0, W, H, part.tint);
+    if (part.lit) {
+      // Akşam ve gece: sahne kararır, pencereler yanık kalır.
       [CABIN.x * T + 14, CABIN.x * T + 54].forEach((wx) => {
         rect(ctx, wx, CABIN.y * T + 43, 12, 8, C.glassLit);
         rect(ctx, wx + 5, CABIN.y * T + 43, 1, 8, C.woodDark);
@@ -723,6 +744,23 @@ const scene = (() => {
     updateLabels();
     updateText(garden);
     requestAnimationFrame(frame);
+  }
+
+  // Gerçek saate göre gün döngüsü (kullanıcının yerel saati). Tema seçiminden bağımsızdır.
+  // edge: canvas'ın iki yanındaki boşluğun rengi, çim rengiyle katmanın karışımı.
+  const DAY_PARTS = [
+    { name: 'night', from: 0, to: 5, tint: 'rgba(18, 22, 52, .42)', edge: '#4A6E3E', lit: true },
+    { name: 'dawn', from: 5, to: 7, tint: 'rgba(255, 170, 120, .16)', edge: '#80AE58', lit: false },
+    { name: 'day', from: 7, to: 17, tint: '', edge: '#6FAE4A', lit: false },
+    { name: 'dusk', from: 17, to: 19.5, tint: 'rgba(255, 140, 60, .18)', edge: '#87A93D', lit: false },
+    { name: 'evening', from: 19.5, to: 21, tint: 'rgba(40, 40, 110, .3)', edge: '#576E54', lit: true },
+    { name: 'night', from: 21, to: 24, tint: 'rgba(18, 22, 52, .42)', edge: '#4A6E3E', lit: true },
+  ];
+
+  function dayPart() {
+    const now = new Date();
+    const hour = now.getHours() + now.getMinutes() / 60;
+    return DAY_PARTS.find((part) => hour >= part.from && hour < part.to) || DAY_PARTS[2];
   }
 
   function fit() {
@@ -781,6 +819,7 @@ const scene = (() => {
       const onPlot = col >= 0 && col < MY_PLOT.cols && row >= 0 && row < MY_PLOT.rows;
       const index = row * MY_PLOT.cols + col;
       const plant = onPlot && game.show.garden && game.garden[index] === 0;
+      if (onPlot && game.show.garden && game.garden[index] > 0) showHint(t('hint.occupied', { name: t(`stageName.${game.garden[index]}`) }));
       mine.goal = onPlot ? [tx + 0.5, ty + 0.75, plant] : [x, y + 0.3, false];
     });
 
@@ -801,5 +840,5 @@ const scene = (() => {
     emotes[id] = { kind, until: clock + 3 };
   }
 
-  return { init, myPosition, showEmote };
+  return { init, myPosition, showEmote, showHint, sharedTreeStage, SHARED_TREE_STEPS };
 })();
