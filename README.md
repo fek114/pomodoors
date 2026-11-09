@@ -1,16 +1,18 @@
-# Eşlik
+# PomoDoors
 
-Başlaması zor gelen işler için sakin ve yargılamayan bir ortak çalışma web uygulaması. Kullanıcı kısa bir niyet yazar, süresini seçer ve kamerasız bir odada başkalarıyla aynı anda çalışır. Odak sırasında sohbet kapalıdır, molada açılır.
+> Bu dal, Eşlik ürününün oyunlaştırılmış bir varyantıdır. Oda, tur ve sohbet kuralları Eşlik ile aynıdır; üzerine büyüyen bir bahçe, XP ve seviye, para birimi, seri ve liderlik tablosu eklenir. Görsel dil özgün, sıcak bir piksel sanattır.
+
+Başlaması zor gelen işler için sakin ve yargılamayan bir ortak çalışma web uygulaması. Kullanıcı kısa bir niyet yazar, süresini seçer ve kamerasız bir odada başkalarıyla aynı anda çalışır. Odakta geçen dakikalar kişinin kendi bahçesini büyütür. Odak sırasında sohbet kapalıdır, molada açılır.
 
 > **Durum:** Bu depoda yalnızca statik bir arayüz prototipi var (`prototip/`). Backend, üyelik, veritabanı, gerçek zamanlı eşzamanlama ve veri kaydı **henüz yok**. Teknoloji yığını seçilmedi.
 >
-> "Eşlik" bir çalışma adıdır, kesinleşmedi. Olası adres: `eslik.melintosh.com`.
+> "PomoDoors" bir çalışma adıdır, kesinleşmedi.
 
 Bu belge, projede çalışan kişiler ile ürün ve kod ajanları için temel bağlam kaynağıdır. Bir değişikliğe başlamadan önce baştan sona okuyun ve [Ajan yönergeleri](#ajan-yönergeleri) bölümüne uyun.
 
 ## Ürün özeti ve hedef kullanıcı
 
-**Eşlik nedir?** Body doubling (başka birinin varlığında çalışma) fikrinden yola çıkan, Pomodoro düzeninde ortak bir çalışma odası. Odadaki herkes aynı turu paylaşır: Bekleme → Odak → Mola. Katılımcılar birbirini kamera yerine avatar, görünen ad, kısa niyet ve durum üzerinden görür.
+**PomoDoors nedir?** Body doubling (başka birinin varlığında çalışma) fikrinden yola çıkan, Pomodoro düzeninde ortak bir çalışma odası. Her odak turu kişinin bahçesine katkı olarak döner. Odadaki herkes aynı turu paylaşır: Bekleme → Odak → Mola. Katılımcılar birbirini kamera yerine avatar, görünen ad, kısa niyet ve durum üzerinden görür.
 
 **Hedef:** Kendi kullanımımız ve bir portfolyo vaka çalışması için birkaç hafta içinde test edilebilir bir MVP. İlk sürüm küçük, davetli bir pilot grupla denenecek.
 
@@ -26,22 +28,56 @@ Bu belge, projede çalışan kişiler ile ürün ve kod ajanları için temel ba
 
 - Bazı işlerde en zor adım başlamaktır. İş büyük, belirsiz ya da sıkıcı göründüğünde ertelenir.
 - Yalnız çalışırken dikkat kolay dağılır, zaman algısı kayar.
-- Var olan birlikte çalışma seçenekleri çoğu zaman kamera, konuşma ya da görünür olma baskısı taşır. Verimlilik uygulamaları ise puan, seri ve kıyaslamayla ek baskı kurabilir.
+- Var olan birlikte çalışma seçenekleri çoğu zaman kamera, konuşma ya da görünür olma baskısı taşır. Verimlilik uygulamalarındaki puan, seri ve kıyaslama çoğu zaman cezalandırıcı kurulur: seri bozulunca her şey sıfırlanır, geride kalan kişi utandırılır.
 
 **Vaat**
 
-> Kısa bir niyet yaz, süreni seç, başkalarıyla sessizce çalış.
+> Kısa bir niyet yaz, süreni seç, başkalarıyla sessizce çalış, bahçen büyüsün.
 
-Kamera yok, yarış yok, suçluluk yok. Eşlik başlamayı kolaylaştırmayı, birilerinin de çalıştığını hissettirmeyi ve molayı gerçekten mola yapmayı amaçlar. Tıbbi ya da terapötik bir etki iddiası taşımaz.
+Kamera yok, suçluluk yok. PomoDoors başlamayı kolaylaştırmayı, birilerinin de çalıştığını hissettirmeyi ve molayı gerçekten mola yapmayı amaçlar. Oyun öğeleri cezalandırmak için değil, eşlik etmek için vardır. Tıbbi ya da terapötik bir etki iddiası taşımaz.
 
 ## Ürün ilkeleri
 
 - **ADHD dostu.** Az adım, az karar. Hazır varsayılanlar var (25 dk odak, 5 dk mola). Kalan süre ve bir sonraki aşamanın saati hep görünür. Aşama değişimleri belirgindir. Dikkat dağıtan öğeler en aza indirilir.
-- **Düşük baskı.** Niyet isteğe bağlıdır. Tura geç katılmak ya da erken ayrılmak normaldir, cezalandırılmaz. Hiçbir şey "kaçırılmış" gibi sunulmaz.
+- **Düşük baskı.** Niyet isteğe bağlıdır. Tura geç katılmak ya da erken ayrılmak normaldir, cezalandırılmaz. Hiçbir şey "kaçırılmış" gibi sunulmaz. Oyun öğeleri de bu kurala uyar: kazanılan bir şey geri alınmaz.
 - **Kamera gerektirmez.** Görüntü ve ses yok. Kişinin varlığı avatar, görünen ad, niyet ve durumla gösterilir.
-- **Minimal / editorial.** Yumuşak nötr zemin, net tipografi (serif başlıklar, sans gövde metni), tek ve ölçülü vurgu rengi, bol boşluk. Görsel zenginlik süslemeyle değil, avatarlar ve küçük durum illüstrasyonlarıyla sağlanır.
-- **Yargılamayan dil.** "Başarısız", "kaçırdın", "yine mi" gibi ifadeler kullanılmaz. Özetler yalnızca olanı aktarır: "8 dk odak · sonradan katıldı". Puan, seri, sıralama ve kullanıcılar arası kıyaslama yoktur.
+- **Sıcak piksel sanat.** Özgün piksel sanat: sıcak toprak ve bitki tonları, ahşap ve kâğıt dokulu paneller, mevsim ve gün döngüsü hissi. Piksel yazı tipi yalnızca başlıklarda ve kısa etiketlerde kullanılır; gövde metni okunaklı bir sans ile yazılır. Ekran kalabalıklaşmaz, boşluk korunur. Var olan bir oyunun çizimleri, karakterleri, arayüz parçaları ya da yazı tipi kopyalanmaz.
+- **Yargılamayan dil.** "Başarısız", "kaçırdın", "yine mi" gibi ifadeler kullanılmaz. Özetler yalnızca olanı aktarır: "8 dk odak · sonradan katıldı". Oyun öğeleri de aynı sakinlikle anlatılır: "Bahçene 3 filiz eklendi" denir, "Serini kaybettin" denmez.
 - **Erişilebilir.** Durumlar yalnızca renkle değil, metin ve ikonla da anlatılır. Arayüz klavyeyle kullanılabilir. Hareket azaltma tercihine uyulur. Sesli uyarı isteğe bağlıdır ve varsayılan olarak kapalıdır.
+
+## Oyunlaştırma
+
+Oyun öğeleri kişiye eşlik etmek için var; baskı kurmak, cezalandırmak ya da utandırmak için değil. Aşağıdakiler önerilen varsayılanlardır; açık kalan ayrıntılar [Açık kararlar](#açık-kararlar) bölümündedir. Bu öğelerin hiçbiri statik prototipte henüz yok.
+
+### Büyüyen bahçe
+
+- Her kullanıcının kendine ait bir bahçesi vardır. Odakta geçen dakikalar bahçeye katkı olarak döner: tohum ekilir, filizlenir, büyür.
+- Katkı, gerçekten katılınan odak süresinden hesaplanır; alt sınır yoktur. Sonradan katılmak ya da erken ayrılmak da katkı sayılır.
+- Bitkiler kurumaz, solmaz, ölmez. Uzun süre gelmeyen biri bahçesini bıraktığı gibi bulur.
+
+### XP, seviye ve para birimi
+
+- XP yalnızca odak dakikalarından gelir. Molada, sohbette ya da odada bekleyerek XP kazanılmaz; böylece mola gerçekten mola kalır.
+- XP birikince seviye artar. Seviye hiçbir koşulda düşmez.
+- Oyun içi para birimiyle bahçe için tohum, süs ve avatar aksesuarı alınır. Gerçek parayla satın alınmaz.
+- Kazanılan XP, seviye, para ve eşyalar geri alınmaz.
+
+### Seri
+
+- Arka arkaya en az bir odak turuna katılınan günleri sayar.
+- Haftada iki dinlenme günü seriyi bozmaz.
+- Seri bozulursa kayıp mesajı, uyarı ya da kırmızı gösterge çıkmaz; sayaç sessizce yeniden başlar. En uzun seri kişinin geçmişinde kalır.
+- Seri hiçbir ödülün şartı değildir. "Serin bozulmak üzere" gibi hatırlatmalar gönderilmez.
+
+### Liderlik tablosu
+
+- İsteğe bağlıdır ve varsayılan olarak kapalıdır. Kullanıcı katılmayı seçmedikçe tabloda görünmez.
+- Haftalık odak dakikasını gösterir ve her hafta yeniden başlar.
+- Yalnızca davetli pilot grubunu kapsar. Alt sıralar vurgulanmaz; "geride kaldın" gibi ifadeler kullanılmaz.
+
+### Hepsi gizlenebilir
+
+- Her oyun öğesi ayarlardan ayrı ayrı gizlenebilir. Tümünü kapatan kullanıcı sade bir ortak çalışma odası görür.
 
 ## Güncel statik prototip
 
@@ -67,9 +103,10 @@ Kamera yok, yarış yok, suçluluk yok. Eşlik başlamayı kolaylaştırmayı, b
 - Gerçek zamanlı eşzamanlama yok. Diğer katılımcılar, niyetleri ve mesajları sahte; zamanlayıcı yalnızca tarayıcıda çalışır.
 - Veri kaydı yok. Sayfa yenilenince her şey başa döner.
 - Sohbet kuralı yalnızca arayüzde uygulanıyor; sunucu tarafında denetim yok.
-- Görev listesi, ödül sistemi ve oturum/görev geçmişi yok.
+- Görev listesi, oyun öğeleri (bahçe, XP, para birimi, seri, liderlik tablosu) ve oturum/görev geçmişi yok.
 - Giriş, oda önü, geçmiş ve ayarlar ekranları yok.
 - Otomatik test yok.
+- Görünüm hâlâ Eşlik'in minimal / editorial dilinde (Newsreader, Inter); piksel sanata geçilmedi.
 
 ## Genişletilmiş MVP kapsamı
 
@@ -112,11 +149,11 @@ MVP'de davetli pilot için tek bir ortak oda olacak. Bu kurallar kararlaştırı
 - Kullanıcı görevlerini küçük görevlere ya da ilk adımlara ayırabilir.
 - Gelişmiş görev yönetimi (projeler, etiketler, öncelik, son tarih, paylaşım) kapsam dışıdır.
 
-### 6. Küçük görevler için hafif ödül
+### 6. Oyun öğeleri
 
-- Tamamlanan küçük görevler, örneğin bir avatar aksesuarı gibi kozmetik bir şeyin açılmasını sağlayabilir.
-- Sınırlar: puan ya da para birimi yok, seri şartı yok, kazanılan şey kaybedilmez, kimseyle kıyaslanmaz.
-- Ayrıntılar ayrıca tasarlanacak. Statik prototipe bağlanmadı.
+- Büyüyen bahçe, XP ve seviye, oyun içi para birimi, seri ve isteğe bağlı liderlik tablosu.
+- Kurallar ve sınırlar [Oyunlaştırma](#oyunlaştırma) bölümündedir.
+- Statik prototipe henüz bağlanmadı.
 
 ### 7. Kişisel oturum ve görev geçmişi
 
@@ -128,8 +165,7 @@ MVP'de davetli pilot için tek bir ortak oda olacak. Bu kurallar kararlaştırı
 - Kamera ve ses
 - Yabancılarla eşleştirme
 - Herkese açık oda keşfi ve çoklu oda
-- Liderlik tablosu
-- Seri (streak) baskısı
+- Pilot grubu dışına açık liderlik tablosu
 - Mobil uygulama. Varsayım: MVP mobil tarayıcıda kullanılabilir olacak.
 - Gelişmiş analitik
 - Tarayıcı bildirimleri
@@ -141,7 +177,13 @@ Bu konular henüz karara bağlanmadı. İlgili bir değişiklikten önce sorun:
 - E-posta ile giriş yöntemi: tek kullanımlık bağlantı mı, parola mı?
 - Teknoloji yığını ve barındırma: backend, gerçek zamanlı katman, veritabanı.
 - Görev listesi ile tur niyeti arasındaki bağ: niyet bir görevden seçilebilecek mi?
-- Ödül sisteminin kuralları, görünümü ve avatar aksesuarlarıyla ilişkisi.
+- XP eğrisi: bir seviye kaç odak dakikası?
+- Para biriminin adı; tohum, süs ve aksesuarların fiyatları.
+- Tamamlanan küçük görevler de XP ya da para kazandırsın mı? Kazandırırsa "XP yalnızca odaktan gelir" kuralı değişir.
+- Bahçe odadaki diğer kişilere görünsün mü?
+- Liderlik tablosunun yerine ya da yanında, odadakilerin birlikte büyüttüğü ortak bir bahçe olsun mu?
+- Piksel sanat ölçeği (ör. 16×16 ya da 32×32) ve başlık yazı tipi.
+- Mevcut 8 SVG avatar piksel sanata dönüştürülsün mü?
 - Avatar galerisine fotoğraf yükleme eklenip eklenmeyeceği. Şu anki yön yalnızca hazır avatarlar.
 - Pilot ölçeği: aynı anda kaç kişi?
 - Ürün adı ve alan adı.
@@ -195,12 +237,13 @@ Kurulum, paket yükleme ya da derleme adımı yok.
 2. **Türkçe ürün metinlerini koru.** Arayüz metinleri Türkçe ve yargılamayan bir tonla yazıldı. Gerekçesiz yeniden yazma ya da çeviri yapma; değişiklik gerekiyorsa öner.
 3. **Kapsamı büyütmeden önce sor.** Yukarıdaki MVP listesinde olmayan bir özellik, ekran, bağımlılık ya da servis eklemeden önce onay al. [Açık kararlar](#açık-kararlar) bölümündeki konularda kendi başına karar verme.
 4. **ADHD için tıbbi etki iddiası yazma.** "Tedavi eder", "odaklanmayı garanti eder", "bilimsel olarak kanıtlanmış" gibi ifadeler kullanma. "Kolaylaştırmayı amaçlar" gibi ölçülü ifadeler kullan.
-5. **Puan, seri ya da liderlik yarışı ekleme.** Kullanıcılar arası kıyaslama, sıralama ya da seri sayacı olmayacak. Ödüller kozmetik ve baskısız kalacak.
+5. **Oyun öğelerini [Oyunlaştırma](#oyunlaştırma) bölümündeki sınırlar içinde tut.** Kazanılanı geri alan, seri bozulunca kayıp gösteren, alt sıraları vurgulayan, oyun öğelerini zorunlu kılan ya da gerçek parayla satın alma isteyen bir şey ekleme.
 6. **Gerçek backend veya auth varmış gibi davranma.** Prototipteki veriler sahte. Olmayan altyapıyı kodda, metinde ya da raporlarda varmış gibi anlatma. Bir şeyi doğrulamadıysan bunu açıkça söyle.
-7. **Her değişikliği küçük ve incelenebilir tut.** Bir seferde tek bir konu üzerinde çalış. Neyi neden değiştirdiğini kısaca yaz.
+7. **Her değişikliği küçük ve incelenebilir tut.** Bir seferde tek bir konu üzerinde çalış. Her parçayı uygulamadan önce neyi neden değiştireceğini kısaca yazıp onaya sun.
 
 Ayrıca:
 
+- Görseller özgün piksel sanat olmalı. Var olan bir oyunun çizimlerini, karakterlerini, arayüz parçalarını ya da yazı tipini kopyalama.
 - Durumları yalnızca renkle anlatma; metin ya da ikon ekle.
 - Önizleme kontrolünü ürün arayüzünün parçası gibi tasarlama.
 - Renkler ve yazı tipleri `prototip/styles.css` başındaki `:root` belirteçlerinde. Yeni renk eklemeden önce mevcut belirteçleri kullan.
