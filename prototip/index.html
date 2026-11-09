@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Eşlik — Oda prototipi</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,300..600;1,6..72,400&display=swap">
+  <link rel="stylesheet" href="styles.css">
+  <script src="avatars.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body data-phase="waiting">
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <span class="wordmark">Eşlik</span>
+        <span class="room-name">Ortak oda</span>
+      </div>
+      <div class="topbar-actions">
+        <button class="sound-toggle" id="soundToggle" type="button" aria-pressed="false" title="Aşama değiştiğinde kısa bir ses çalar">
+          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/>
+            <path class="sound-on" d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/>
+            <path class="sound-off" d="M16 9.5l5 5M21 9.5l-5 5"/>
+          </svg>
+          <span>Ses <span id="soundState">kapalı</span></span>
+        </button>
+        <span class="me" id="meAvatar" role="img"></span>
+      </div>
+    </div>
+  </header>
+
+  <p class="phase-banner" id="phaseBanner" role="status" aria-live="polite"></p>
+
+  <main class="room" id="roomView">
+    <section class="stage" aria-labelledby="phaseName">
+      <p class="eyebrow">
+        <span class="eyebrow-dot" aria-hidden="true"></span>
+        <span id="phaseName">Bekleme</span>
+        <span class="eyebrow-detail" id="phaseDetail"></span>
+      </p>
+      <div class="timer" id="timer" role="timer"></div>
+      <p class="stage-meta" id="stageMeta"></p>
+      <div class="progress" id="progress" aria-hidden="true"><span id="progressFill"></span></div>
+
+      <div class="stage-block" data-block="waiting join">
+        <form id="startForm">
+          <div class="field">
+            <label for="intentInput">Bu turda neye odaklanacaksın?</label>
+            <input class="text-input" id="intentInput" type="text" maxlength="80" autocomplete="off" placeholder="ör. Raporun giriş bölümünü yazmak">
+            <p class="hint"><span>İsteğe bağlı · Yalnızca o an odada olanlar görür.</span><span id="intentCount">0/80</span></p>
+          </div>
+          <fieldset class="durations" id="durations">
+            <legend>Odak süresi</legend>
+            <div class="segmented">
+              <label><input type="radio" name="duration" value="15"><span>15 dk</span></label>
+              <label><input type="radio" name="duration" value="25" checked><span>25 dk</span></label>
+              <label><input type="radio" name="duration" value="45"><span>45 dk</span></label>
+            </div>
+            <p class="hint">Ardından her zaman 5 dakika mola.</p>
+          </fieldset>
+          <div class="form-actions">
+            <button class="btn btn-primary" id="startBtn" type="submit">Turu başlat</button>
+            <p class="fine" id="startNote">Odadaki herkes turu başlatabilir. Başlayan tur herkes için birlikte ilerler.</p>
+          </div>
+        </form>
+      </div>
+
+      <div class="stage-block" data-block="focus" hidden>
+        <p class="label">Niyetin</p>
+        <p class="intent-text" id="myIntent"></p>
+        <p class="late-note" id="lateNote" hidden>Sonradan katıldın; turun kalan süresine dahilsin.</p>
+        <div class="stage-actions">
+          <button class="btn btn-quiet" id="leaveBtn" type="button">Turdan ayrıl</button>
+          <p class="fine">Yalnızca senin katılımın biter; oda zamanlayıcısı devam eder.</p>
+        </div>
+      </div>
+
+      <div class="stage-block" data-block="left" hidden>
+        <!-- Durum illüstrasyonu: aralık kapı -->
+        <svg class="illus illus-left" viewBox="0 0 64 54" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M8 48h46"/>
+          <path d="M16 48V8h22v40"/>
+          <path d="M16 8l11 3v38l-11-1"/>
+          <circle cx="24" cy="30" r="1" fill="currentColor" stroke="none"/>
+          <path class="illus-accent" d="M43 28h11M50 24l4 4-4 4"/>
+        </svg>
+        <p class="label">Turdan ayrıldın</p>
+        <p class="intent-text" id="leftSummary"></p>
+        <p class="fine">Oda turu herkes için sürüyor. Mola başladığında sohbet açılır.</p>
+        <div class="stage-actions">
+          <button class="btn btn-quiet" id="rejoinBtn" type="button">Tura geri dön</button>
+        </div>
+      </div>
+
+      <div class="stage-block" data-block="break" hidden>
+        <article class="card" id="summaryCard">
+          <p class="label">Bu turun özeti</p>
+          <p class="summary-line" id="summaryLine"></p>
+          <p class="summary-intent" id="summaryIntent"></p>
+        </article>
+        <div class="break-note">
+          <!-- Durum illüstrasyonu: buharı tüten fincan -->
+          <svg class="illus" viewBox="0 0 56 48" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 21h24v7.5A10.5 10.5 0 0 1 25.5 39h-3A10.5 10.5 0 0 1 12 28.5z"/>
+            <path d="M36 24h2.5a4.5 4.5 0 0 1 0 9H35"/>
+            <path d="M8 43h32"/>
+            <path class="illus-accent" d="M19 16c-1.8-2.2 1.8-3.8 0-6.5M25 16c-1.8-2.2 1.8-3.8 0-6.5M31 16c-1.8-2.2 1.8-3.8 0-6.5"/>
+          </svg>
+          <p class="fine" id="breakNote"></p>
+        </div>
+      </div>
+    </section>
+
+    <aside class="side" aria-label="Katılımcılar ve sohbet">
+      <section aria-labelledby="peopleTitle">
+        <div class="section-head">
+          <h2 id="peopleTitle">Odadakiler</h2>
+          <span class="count" id="peopleCount"></span>
+        </div>
+        <ul class="people-list" id="peopleList"></ul>
+      </section>
+
+      <section class="chat card" aria-labelledby="chatTitle">
+        <div class="section-head">
+          <h2 id="chatTitle">Sohbet</h2>
+          <span class="chat-state" id="chatState">Kapalı</span>
+        </div>
+        <div class="chat-locked" id="chatLocked">
+          <!-- Durum illüstrasyonu: kilitli konuşma balonu -->
+          <svg class="illus" viewBox="0 0 72 54" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 8h34a7 7 0 0 1 7 7v13a7 7 0 0 1-7 7H27l-9 8v-8h-6a7 7 0 0 1-7-7V15a7 7 0 0 1 7-7z"/>
+            <path d="M15 18h22M15 25h14" opacity=".55"/>
+            <g class="illus-accent">
+              <rect class="illus-surface" x="46" y="30" width="18" height="14" rx="3"/>
+              <path d="M50.5 30v-3.5a4.5 4.5 0 0 1 9 0V30"/>
+              <path d="M55 35.5v3"/>
+            </g>
+          </svg>
+          <p class="locked-title" id="lockedTitle"></p>
+          <p class="locked-text" id="lockedText"></p>
+        </div>
+        <ol class="messages" id="messages" hidden></ol>
+        <form class="composer" id="composer">
+          <label class="visually-hidden" for="msgInput">Mesaj</label>
+          <input class="text-input" id="msgInput" type="text" maxlength="280" autocomplete="off" disabled>
+          <button class="btn btn-primary btn-small" id="sendBtn" type="submit" disabled>Gönder</button>
+        </form>
+      </section>
+    </aside>
+  </main>
+
+  <main class="profile" id="profileView" aria-labelledby="profileTitle" hidden>
+    <p class="eyebrow">Profil</p>
+    <h1 class="profile-title" id="profileTitle">Avatarını seç</h1>
+    <p class="profile-lede">Odadakiler seni bu avatarla görür. Dilediğin zaman değiştirebilirsin.</p>
+    <div class="profile-layout">
+      <fieldset class="avatar-picker">
+        <legend class="visually-hidden">Avatar seçenekleri</legend>
+        <div class="avatar-grid" id="avatarGrid"></div>
+      </fieldset>
+      <aside class="card profile-preview" aria-labelledby="profilePreviewTitle">
+        <p class="label" id="profilePreviewTitle">Odada böyle görünürsün</p>
+        <ul class="people-list" id="profilePreview"></ul>
+        <p class="fine" id="avatarLabel"></p>
+      </aside>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" id="profileDone" type="button">Odaya dön</button>
+    </div>
+  </main>
+
+  <dialog class="sheet" id="leaveDialog" aria-labelledby="leaveTitle">
+    <form method="dialog">
+      <h2 id="leaveTitle">Turdan ayrılmak istiyor musun?</h2>
+      <p>Şimdiye kadarki <strong id="leaveMinutes"></strong> odak süren kaydedilir. Oda zamanlayıcısı herkes için devam eder.</p>
+      <div class="sheet-actions">
+        <button class="btn btn-quiet" value="stay">Vazgeç</button>
+        <button class="btn btn-primary" value="leave">Turdan ayrıl</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Geçici önizleme kontrolü: ürün arayüzünün parçası değil. -->
+  <div class="preview" id="preview" role="region" aria-label="Prototip önizleme kontrolü">
+    <span class="preview-tag">Prototip önizleme</span>
+    <div class="preview-body" id="previewBody">
+      <div class="preview-group" role="group" aria-label="Oda durumu">
+        <button type="button" data-goto="waiting">Bekleme</button>
+        <button type="button" data-goto="focus">Odak</button>
+        <button type="button" data-goto="break">Mola</button>
+        <button type="button" data-next title="Aşamanın sonuna ileri sarar">Sonraki aşama →</button>
+      </div>
+      <div class="preview-group" role="group" aria-label="Odaya sonradan giriş">
+        <span>Odaya gir:</span>
+        <button type="button" data-arrive="focus">Odak sürerken</button>
+        <button type="button" data-arrive="break">Molada</button>
+      </div>
+      <div class="preview-group">
+        <button type="button" data-open="profile" aria-pressed="false">Profil / avatar seçimi</button>
+      </div>
+    </div>
+    <button type="button" id="previewToggle" aria-expanded="true" aria-controls="previewBody">Gizle</button>
+  </div>
+</body>
+</html>
