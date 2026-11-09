@@ -49,6 +49,12 @@ Kamera yok, suçluluk yok. PomoDoors başlamayı kolaylaştırmayı, birilerinin
 
 Oyun öğeleri kişiye eşlik etmek için var; baskı kurmak, cezalandırmak ya da utandırmak için değil. Aşağıdakiler önerilen varsayılanlardır; açık kalan ayrıntılar [Açık kararlar](#açık-kararlar) bölümündedir. Bu öğelerin hiçbiri statik prototipte henüz yok.
 
+### Bahçe sahnesi
+
+- Oda, yukarıdan bakan 2B piksel bir bahçe sahnesidir. Her katılımcı sahnede bir karakterdir.
+- Odakta sahne sakindir: karakterler kendi tarhlarında çalışır, bitkiler dakikalar geçtikçe büyür. Turdan ayrılan kişi evin önünde soluk görünür. Dolaşmak kapalıdır.
+- Bekleme ve molada kullanıcı kendi karakteriyle dolaşabilir (ok tuşları, WASD ya da dokunarak) ve boş tarhlara tohum ekebilir. Molada sohbet mesajları karakterlerin üstünde, aynı anda tek balon olacak şekilde sırayla görünür.
+
 ### Büyüyen bahçe
 
 - Her kullanıcının kendine ait bir bahçesi vardır. Odakta geçen dakikalar bahçeye katkı olarak döner: tohum ekilir, filizlenir, büyür.
@@ -75,6 +81,15 @@ Oyun öğeleri kişiye eşlik etmek için var; baskı kurmak, cezalandırmak ya 
 - Haftalık odak dakikasını gösterir ve her hafta yeniden başlar.
 - Yalnızca davetli pilot grubunu kapsar. Alt sıralar vurgulanmaz; "geride kaldın" gibi ifadeler kullanılmaz.
 
+### Prototip varsayılanları
+
+- 1 dk odak = 1 XP = 1 Yaprak. Para biriminin adı Yaprak.
+- Her seviye 100 XP. Her yeni seviyede bahçede bir boş tarh açılır.
+- Odakta geçen her 5 dk bahçede bir bitkiyi bir adım büyütür: boş tarh → tohum → filiz → genç bitki → çiçek.
+- Seri, günün ilk odak katkısıyla sessizce artar.
+- Molada boş tarha tohum ekmek ücretsizdir.
+- Piksel sanat 16×16 ızgarada çizilir (simgeler 8×8). Başlık yazı tipi Pixelify Sans, gövde Inter.
+
 ### Hepsi gizlenebilir
 
 - Her oyun öğesi ayarlardan ayrı ayrı gizlenebilir. Tümünü kapatan kullanıcı sade bir ortak çalışma odası görür.
@@ -85,7 +100,7 @@ Oyun öğeleri kişiye eşlik etmek için var; baskı kurmak, cezalandırmak ya 
 
 ### Kapsadıkları
 
-- **Oda ekranı:** Bekleme, Odak ve Mola halleri.
+- **Oda ekranı:** Bekleme, Odak ve Mola halleri; üstte ahşap gösterge (aşama, zamanlayıcı), altında 2B piksel bahçe sahnesi.
   - **Bekleme:** isteğe bağlı niyet alanı (80 karakter), 15 / 25 / 45 dk seçimi (25 seçili gelir), "Turu başlat".
   - **Odak:** ortak geri sayım, ilerleme çizgisi, molanın başlayacağı saat, katılımcılar ve niyetleri, kapalı sohbet. "Turdan ayrıl" önce onay ister; ayrılan kişi "Tura geri dön" diyebilir. İptal düğmesi yok.
   - **Odak sürerken giriş:** "Kalan süreye katıl". Kayıt katılınan andan başlar; ortak zamanlayıcı değişmez.
@@ -103,10 +118,10 @@ Oyun öğeleri kişiye eşlik etmek için var; baskı kurmak, cezalandırmak ya 
 - Gerçek zamanlı eşzamanlama yok. Diğer katılımcılar, niyetleri ve mesajları sahte; zamanlayıcı yalnızca tarayıcıda çalışır.
 - Veri kaydı yok. Sayfa yenilenince her şey başa döner.
 - Sohbet kuralı yalnızca arayüzde uygulanıyor; sunucu tarafında denetim yok.
-- Görev listesi, oyun öğeleri (bahçe, XP, para birimi, seri, liderlik tablosu) ve oturum/görev geçmişi yok.
+- Görev listesi, mağaza ve oturum/görev geçmişi yok. Oyun öğeleri sahte verilerle çalışır ve sayfa yenilenince sıfırlanır.
 - Giriş, oda önü, geçmiş ve ayarlar ekranları yok.
 - Otomatik test yok.
-- Görünüm hâlâ Eşlik'in minimal / editorial dilinde (Newsreader, Inter); piksel sanata geçilmedi.
+- Avatarlar hâlâ eski vektör çizimler; piksel sanata dönüştürülmedi.
 
 ## Genişletilmiş MVP kapsamı
 
@@ -153,7 +168,7 @@ MVP'de davetli pilot için tek bir ortak oda olacak. Bu kurallar kararlaştırı
 
 - Büyüyen bahçe, XP ve seviye, oyun içi para birimi, seri ve isteğe bağlı liderlik tablosu.
 - Kurallar ve sınırlar [Oyunlaştırma](#oyunlaştırma) bölümündedir.
-- Statik prototipe henüz bağlanmadı.
+- Statik prototipte sahte verilerle bağlandı: durum çubuğu, bahçe paneli, mola özetindeki ödül satırları, isteğe bağlı tablo ve gizleme ayarları.
 
 ### 7. Kişisel oturum ve görev geçmişi
 
@@ -177,12 +192,11 @@ Bu konular henüz karara bağlanmadı. İlgili bir değişiklikten önce sorun:
 - E-posta ile giriş yöntemi: tek kullanımlık bağlantı mı, parola mı?
 - Teknoloji yığını ve barındırma: backend, gerçek zamanlı katman, veritabanı.
 - Görev listesi ile tur niyeti arasındaki bağ: niyet bir görevden seçilebilecek mi?
-- XP eğrisi: bir seviye kaç odak dakikası?
-- Para biriminin adı; tohum, süs ve aksesuarların fiyatları.
+- Tohum, süs ve aksesuarların Yaprak fiyatları; mağaza ekranı.
+- XP eğrisi pilotta sabit 100 XP olarak kalsın mı?
 - Tamamlanan küçük görevler de XP ya da para kazandırsın mı? Kazandırırsa "XP yalnızca odaktan gelir" kuralı değişir.
 - Bahçe odadaki diğer kişilere görünsün mü?
 - Liderlik tablosunun yerine ya da yanında, odadakilerin birlikte büyüttüğü ortak bir bahçe olsun mu?
-- Piksel sanat ölçeği (ör. 16×16 ya da 32×32) ve başlık yazı tipi.
 - Mevcut 8 SVG avatar piksel sanata dönüştürülsün mü?
 - Avatar galerisine fotoğraf yükleme eklenip eklenmeyeceği. Şu anki yön yalnızca hazır avatarlar.
 - Pilot ölçeği: aynı anda kaç kişi?
@@ -197,6 +211,7 @@ Bu konular henüz karara bağlanmadı. İlgili bir değişiklikten önce sorun:
     ├── index.html     # oda ve profil görünümleri, önizleme kontrolü
     ├── styles.css     # tasarım belirteçleri (:root), açık/koyu tema
     ├── avatars.js     # SVG avatar seti
+    ├── scene.js       # bahçe sahnesi: canvas, karolar, karakterler
     └── app.js         # sahte veri, aşama mantığı, etkileşimler
 ```
 
@@ -218,7 +233,7 @@ Kurulum, paket yükleme ya da derleme adımı yok.
    python3 -m http.server 8000 --directory prototip
    ```
 
-3. Yazı tipleri (Newsreader, Inter) Google Fonts'tan yüklenir. Çevrimdışıyken sistem yazı tipleri kullanılır, sayfa yine çalışır.
+3. Yazı tipleri (Pixelify Sans, Inter) Google Fonts'tan yüklenir. Çevrimdışıyken sistem yazı tipleri kullanılır, sayfa yine çalışır.
 
 ### Önizleme kontrolü
 
@@ -228,7 +243,8 @@ Kurulum, paket yükleme ya da derleme adımı yok.
 | Sonraki aşama → | Aktif aşamanın sonuna ileri sarar. Özetlerdeki süreler gerçek katılımdan hesaplanır. |
 | Odaya gir: Odak sürerken | Odaya odak sürerken ilk kez girmiş olursun ve "Kalan süreye katıl" akışını denersin. |
 | Odaya gir: Molada | Odaya molada ilk kez girmiş olursun. Sohbet açıktır, tur özeti gösterilmez. |
-| Profil / avatar seçimi | Avatar seçme görünümünü açar. |
+| Profil ve oyun ayarları | Avatar seçimini ve oyun öğelerini gizleme ayarlarını açar. |
+| Oyun: Seviyeye 2 XP kala | XP'yi bir sonraki seviyenin 2 altına getirir; seviye atlama özetini denemek için. |
 | Gizle / Göster | Çubuğu küçültür ya da açar. |
 
 ## Ajan yönergeleri

@@ -1,52 +1,76 @@
-/* Eşlik — oda prototipi */
+/* PomoDoors · oda prototipi */
 
 :root {
-  --bg: #F4F1EA;
-  --bg-focus: #EEEBE3;
-  --bg-break: #F8F6F0;
-  --surface: #FBFAF6;
-  --ink: #1E1D1A;
-  --ink-2: #4E4B45;
-  --ink-3: #6F6B62;
-  --line: #E2DDD2;
-  --line-strong: #CFC9BC;
-  --accent: #2F6B5E;
-  --accent-soft: #E2ECE7;
+  /* Gündüz: krem kâğıt, koyu kahve mürekkep, yaprak yeşili vurgu */
+  --bg: #F3E9D2;
+  --bg-focus: #EADFC4;
+  --bg-break: #F7EFDC;
+  --surface: #FBF5E6;
+  --ink: #3B2A1E;
+  --ink-2: #5E4632;
+  --ink-3: #755B43;
+  --line: #E0CFAA;
+  --line-strong: #C9B385;
+  --accent: #3E672C;
+  --accent-soft: #E3EBCF;
   --on-accent: #FFFFFF;
 
   /* Avatar zeminleri */
-  --av-sage: #DCE6E0;
-  --av-sand: #EFE4D2;
-  --av-mist: #DEE4E6;
-  --av-clay: #F1E0D6;
+  --av-sage: #DCE5C8;
+  --av-sand: #F0DDB8;
+  --av-mist: #D9E1DA;
+  --av-clay: #F0D3BE;
 
-  --serif: "Newsreader", "Iowan Old Style", Charter, Georgia, serif;
+  /* Paneller ve oyun öğeleri */
+  --wood: #9A6A3F;
+  --wood-dark: #6B4526;
+  --gold: #C8902E;
+  --leaf: #5E9A3C;
+  --leaf-dark: #3E672C;
+  --petal: #E07A6A;
+  --soil: #A9754A;
+  --soil-dark: #7A5132;
+  --seed: #6B4526;
+  --scene-grass: #6FAE4A;
+
+  --pixel: "Pixelify Sans", ui-monospace, "Courier New", monospace;
   --sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --gutter: clamp(16px, 4vw, 40px);
-  --radius: 12px;
+  --radius: 4px;
   color-scheme: light dark;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #161614;
-    --bg-focus: #121211;
-    --bg-break: #1A1A17;
-    --surface: #1E1D1B;
-    --ink: #EDEAE3;
-    --ink-2: #C2BDB3;
-    --ink-3: #8F8B82;
-    --line: #2E2D29;
-    --line-strong: #403E39;
-    --accent: #86BFAE;
-    --accent-soft: #1F2D29;
-    --on-accent: #0E1513;
+    /* Gece: lacivert-mor gökyüzü, mum ışığı krem mürekkep */
+    --bg: #1C1B26;
+    --bg-focus: #181722;
+    --bg-break: #211F2B;
+    --surface: #262433;
+    --ink: #F1E6CF;
+    --ink-2: #CDBFA4;
+    --ink-3: #A0937D;
+    --line: #34314A;
+    --line-strong: #46425E;
+    --accent: #A6D17F;
+    --accent-soft: #2A3626;
+    --on-accent: #15200F;
 
     /* Koyu saç ve kıyafetler zeminden ayrışsın diye biraz açık tutulur. */
-    --av-sage: #3A4944;
-    --av-sand: #4A4134;
-    --av-mist: #3B4448;
-    --av-clay: #4A3C35;
+    --av-sage: #34402E;
+    --av-sand: #4A3E2C;
+    --av-mist: #33403F;
+    --av-clay: #4A372E;
+    --wood: #7A5434;
+    --wood-dark: #4E3420;
+    --gold: #E3B458;
+    --leaf: #7FB85A;
+    --leaf-dark: #4F8A35;
+    --petal: #E8907F;
+    --soil: #7A5434;
+    --soil-dark: #573A23;
+    --seed: #A9754A;
+    --scene-grass: #4C7442; /* çim rengi + sahnenin gece katmanı */
   }
 }
 
@@ -87,7 +111,7 @@ button { cursor: pointer; }
 
 /* Üst bar */
 
-.topbar { border-bottom: 1px solid var(--line); }
+.topbar { border-bottom: 3px solid var(--wood); background: var(--surface); }
 
 .topbar-inner {
   display: flex;
@@ -102,10 +126,10 @@ button { cursor: pointer; }
 .brand { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
 
 .wordmark {
-  font-family: var(--serif);
+  font-family: var(--pixel);
   font-size: 26px;
   font-weight: 500;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
 }
 
 .room-name { font-size: 14px; color: var(--ink-3); white-space: nowrap; }
@@ -119,7 +143,7 @@ button { cursor: pointer; }
   gap: 8px;
   padding: 7px 12px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius);
   background: transparent;
   color: var(--ink-2);
   font-size: 14px;
@@ -207,12 +231,11 @@ body[data-phase="break"] .eyebrow-dot { background: transparent; box-shadow: ins
 .eyebrow-detail { color: var(--ink-3); font-weight: 500; letter-spacing: .04em; }
 
 .timer {
-  margin-top: 16px;
-  font-family: var(--serif);
-  font-size: clamp(88px, 17vw, 176px);
-  font-weight: 300;
-  line-height: .95;
-  letter-spacing: -0.02em;
+  font-family: var(--pixel);
+  font-size: clamp(36px, 6vw, 52px);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0;
   font-variant-numeric: lining-nums tabular-nums;
   white-space: nowrap;
   transition: color .3s;
@@ -222,15 +245,12 @@ body[data-phase="break"] .eyebrow-dot { background: transparent; box-shadow: ins
 .timer .colon { display: inline-block; width: .3em; text-align: center; color: var(--ink-3); transform: translateY(-.06em); }
 .timer.is-idle { color: var(--ink-3); }
 
-.stage-meta { margin: 16px 0 0; color: var(--ink-2); font-size: 15px; }
+.stage-meta { margin: 0; color: #EAD7B5; font-size: 14px; text-align: right; }
 
 .progress {
-  max-width: 560px;
-  height: 2px;
-  margin-top: 28px;
+  height: 4px;
   overflow: hidden;
-  border-radius: 2px;
-  background: var(--line);
+  background: var(--wood);
 }
 .progress span {
   display: block;
@@ -247,7 +267,8 @@ body[data-phase="break"] .eyebrow-dot { background: transparent; box-shadow: ins
   display: block;
   margin: 0 0 12px;
   padding: 0;
-  font-family: var(--serif);
+  font-family: var(--sans);
+  font-weight: 600;
   font-size: 21px;
   line-height: 1.3;
 }
@@ -319,7 +340,8 @@ body[data-phase="break"] .eyebrow-dot { background: transparent; box-shadow: ins
   transition: background-color .15s, border-color .15s, color .15s, opacity .15s;
 }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
-.btn-primary { background: var(--accent); color: var(--on-accent); }
+.btn-primary { background: var(--accent); color: var(--on-accent); box-shadow: 0 3px 0 var(--wood-dark); }
+.btn-primary:not(:disabled):active { transform: translateY(2px); box-shadow: 0 1px 0 var(--wood-dark); }
 .btn-primary:not(:disabled):hover { opacity: .9; }
 .btn-quiet { border-color: var(--line-strong); background: transparent; color: var(--ink-2); font-weight: 500; }
 .btn-quiet:hover { border-color: var(--ink-3); color: var(--ink); }
@@ -338,7 +360,7 @@ body[data-phase="break"] .eyebrow-dot { background: transparent; box-shadow: ins
 
 .intent-text {
   margin: 0;
-  font-family: var(--serif);
+  font-family: var(--sans);
   font-size: clamp(22px, 3vw, 28px);
   line-height: 1.3;
   overflow-wrap: anywhere;
@@ -351,12 +373,13 @@ body[data-phase="break"] .eyebrow-dot { background: transparent; box-shadow: ins
 
 .card {
   padding: 24px;
-  border: 1px solid var(--line);
-  border-radius: 16px;
+  border: 2px solid var(--wood);
+  border-radius: var(--radius);
+  box-shadow: 4px 4px 0 var(--line-strong);
   background: var(--surface);
 }
 
-.summary-line { margin: 0; font-family: var(--serif); font-size: 26px; line-height: 1.25; }
+.summary-line { margin: 0; font-family: var(--sans); font-weight: 600; font-size: 26px; line-height: 1.25; }
 .summary-intent { margin: 10px 0 0; color: var(--ink-2); overflow-wrap: anywhere; }
 .summary-intent.is-empty { color: var(--ink-3); font-size: 15px; }
 
@@ -377,10 +400,10 @@ body[data-phase="break"] .eyebrow-dot { background: transparent; box-shadow: ins
 }
 .section-head h2 {
   margin: 0;
-  font-family: var(--serif);
+  font-family: var(--pixel);
   font-size: 22px;
   font-weight: 500;
-  letter-spacing: -0.005em;
+  letter-spacing: 0;
 }
 .count { color: var(--ink-3); font-size: 14px; }
 
@@ -416,9 +439,9 @@ body[data-phase="break"] .eyebrow-dot { background: transparent; box-shadow: ins
   gap: 6px;
   margin: 3px 0 0;
   color: var(--ink-2);
-  font-family: var(--serif);
+  font-family: var(--sans);
   font-size: 17px;
-  font-style: italic;
+  font-style: normal;
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
@@ -431,7 +454,7 @@ body[data-phase="break"] .eyebrow-dot { background: transparent; box-shadow: ins
 .chat-state {
   padding: 3px 10px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius);
   color: var(--ink-3);
   font-size: 13px;
   font-weight: 600;
@@ -440,7 +463,7 @@ body[data-phase="break"] .eyebrow-dot { background: transparent; box-shadow: ins
 
 .chat-locked { padding: 20px 12px 24px; color: var(--ink-3); text-align: center; }
 .chat-locked .illus { width: 72px; height: 54px; margin: 0 auto; }
-.locked-title { margin: 12px 0 4px; color: var(--ink); font-family: var(--serif); font-size: 19px; }
+.locked-title { margin: 12px 0 4px; color: var(--ink); font-family: var(--pixel); font-size: 19px; }
 .locked-text { max-width: 32ch; margin: 0 auto; font-size: 14px; }
 
 .messages {
@@ -471,11 +494,11 @@ body[data-phase="break"] .eyebrow-dot { background: transparent; box-shadow: ins
 
 .profile-title {
   margin: 14px 0 0;
-  font-family: var(--serif);
+  font-family: var(--pixel);
   font-size: clamp(36px, 6vw, 56px);
   font-weight: 400;
   line-height: 1.05;
-  letter-spacing: -0.015em;
+  letter-spacing: 0;
 }
 .profile-lede { max-width: 44ch; margin: 12px 0 0; color: var(--ink-2); }
 
@@ -536,6 +559,140 @@ body[data-phase="break"] .eyebrow-dot { background: transparent; box-shadow: ins
 .profile-preview .person { padding-bottom: 0; border-bottom: 0; }
 .profile-preview .fine { margin-top: 16px; }
 
+/* Bahçe sahnesi ve üstündeki ahşap gösterge */
+
+.scene-frame {
+  min-width: 0;
+  overflow: hidden;
+  border: 3px solid var(--wood-dark);
+  border-radius: var(--radius);
+  background: var(--wood-dark);
+  box-shadow: 6px 6px 0 var(--line-strong);
+}
+.hud {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 24px;
+  padding: 12px 16px;
+  color: #FFF8E8;
+}
+.hud-main { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; }
+.hud .eyebrow { color: #F3E3C3; }
+.hud .eyebrow-detail { color: #D9C49E; }
+.hud .eyebrow-dot { background: #B9A27A; }
+body[data-phase="focus"] .hud .eyebrow-dot { background: #A6D17F; }
+body[data-phase="break"] .hud .eyebrow-dot { box-shadow: inset 0 0 0 2px #A6D17F; }
+.hud .timer.is-idle { color: #D9C49E; }
+.scene-wrap {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  background: var(--scene-grass);
+}
+.scene { display: block; image-rendering: pixelated; image-rendering: crisp-edges; cursor: pointer; }
+.scene:focus-visible { outline: 3px solid var(--gold); outline-offset: -3px; }
+.scene-labels { position: absolute; top: 0; bottom: 0; left: 0; pointer-events: none; }
+.scene-tag {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.scene-name {
+  padding: 1px 6px;
+  border-radius: 2px;
+  background: rgba(43, 38, 34, .72);
+  color: #FFF8E8;
+  font-family: var(--pixel);
+  font-size: 12px;
+  line-height: 1.3;
+}
+.scene-bubble {
+  max-width: 180px;
+  padding: 4px 8px;
+  overflow: hidden;
+  border: 2px solid #6B4526;
+  border-radius: 4px;
+  background: #FFF8E8;
+  color: #3B2A1E;
+  font-size: 12px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+}
+.scene-foot { display: grid; gap: 4px; padding: 10px 16px 12px; color: #EAD7B5; font-size: 13.5px; }
+.scene-foot p { margin: 0; }
+
+@media (min-width: 900px) {
+  .scene-frame { grid-column: 1 / -1; }
+}
+
+/* Oyun öğeleri: piksel sprite'lar, durum çubuğu, bahçe, tablo, ayarlar */
+
+.sprite { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+.px-leaf { fill: var(--leaf); }
+.px-leaf-dark { fill: var(--leaf-dark); }
+.px-stem { fill: var(--leaf-dark); }
+.px-petal { fill: var(--petal); }
+.px-gold { fill: var(--gold); }
+.px-seed { fill: var(--seed); }
+.px-soil { fill: var(--soil); }
+.px-soil-dark { fill: var(--soil-dark); }
+
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--ink-2);
+  font-size: 14px;
+}
+.stat { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.stat .sprite { width: 16px; height: 16px; }
+.xp-bar { display: inline-block; width: 48px; height: 10px; border: 2px solid var(--wood); background: var(--bg); }
+.xp-bar span { display: block; height: 100%; background: var(--accent); }
+
+.board-list { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+.board-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.board-row .avatar { width: 32px; height: 32px; }
+.board-name { flex: 1; min-width: 0; font-size: 15px; }
+.board-row.is-me .board-name { font-weight: 600; }
+.board-minutes { color: var(--ink-2); font-size: 14px; font-variant-numeric: tabular-nums; }
+
+.summary-reward {
+  display: grid;
+  gap: 6px;
+  margin: 16px 0 0;
+  padding: 14px 0 0;
+  border-top: 2px dashed var(--line-strong);
+  list-style: none;
+  color: var(--ink-2);
+}
+.summary-reward li { display: flex; align-items: center; gap: 8px; }
+.summary-reward .sprite { flex: none; width: 16px; height: 16px; }
+
+.game-settings { margin-top: 40px; }
+.settings-title { margin: 0; font-family: var(--pixel); font-size: 22px; font-weight: 500; }
+.game-settings .fine { margin-top: 6px; }
+.toggle-list { display: grid; gap: 12px; margin-top: 18px; }
+.toggle { display: grid; grid-template-columns: auto 1fr; align-items: start; gap: 2px 10px; font-weight: 500; }
+.toggle input { width: 18px; height: 18px; margin: 3px 0 0; accent-color: var(--accent); }
+.toggle small { grid-column: 2; color: var(--ink-3); font-size: 13px; font-weight: 400; }
+
+@media (max-width: 560px) {
+  .topbar-inner { flex-wrap: wrap; }
+  .topbar-actions { flex-wrap: wrap; flex-basis: 100%; }
+  .stats { flex-basis: 100%; order: 2; }
+}
+
 /* Aşama değişimi bildirimi */
 
 .phase-banner {
@@ -546,11 +703,12 @@ body[data-phase="break"] .eyebrow-dot { background: transparent; box-shadow: ins
   max-width: calc(100vw - 32px);
   margin: 0;
   padding: 12px 22px;
-  border-radius: 999px;
-  background: var(--ink);
-  color: var(--bg);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, .12);
-  font-family: var(--serif);
+  border: 2px solid var(--wood-dark);
+  border-radius: var(--radius);
+  background: var(--wood-dark);
+  color: #FFF8E8;
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, .18);
+  font-family: var(--pixel);
   font-size: 18px;
   line-height: 1.3;
   text-align: center;
@@ -567,13 +725,14 @@ body[data-phase="break"] .eyebrow-dot { background: transparent; box-shadow: ins
   width: 100%;
   max-width: min(420px, calc(100vw - 32px));
   padding: 28px;
-  border: 1px solid var(--line);
-  border-radius: 16px;
+  border: 3px solid var(--wood);
+  border-radius: var(--radius);
+  box-shadow: 6px 6px 0 var(--wood-dark);
   background: var(--surface);
   color: var(--ink);
 }
 .sheet::backdrop { background: rgba(20, 20, 18, .32); }
-.sheet h2 { margin: 0 0 8px; font-family: var(--serif); font-size: 24px; font-weight: 500; }
+.sheet h2 { margin: 0 0 8px; font-family: var(--sans); font-size: 24px; font-weight: 600; }
 .sheet p { margin: 0; color: var(--ink-2); }
 .sheet-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 24px; }
 

@@ -1,4 +1,4 @@
-// Eşlik — oda prototipi.
+// PomoDoors · oda prototipi.
 // Veriler sahte ve yalnızca bu sayfada tutulur; üyelik, sunucu ve canlı eşzamanlama yok.
 // Avatar seti avatars.js içinde.
 
@@ -35,9 +35,112 @@ const state = {
   joinedAt: 0,
   focusedMs: 0,         // bu turda biriken odak süresi; ayrılıp dönülürse toplanır
   turnIntent: '',
-  summary: null,        // yalnızca önceki tura katılan kullanıcı için { kind, minutes, intent }
+  summary: null,        // yalnızca önceki tura katılan kullanıcı için { kind, minutes, intent, reward }
   sound: false,
 };
+
+/* Oyun öğeleri: sahte, yalnızca bu sayfada. Kazanılan hiçbir şey geri alınmaz. */
+
+const XP_PER_LEVEL = 100;      // 1 dk odak = 1 XP = 1 Yaprak
+const MINUTES_PER_GROWTH = 5;  // her 5 dk odak bahçede bir büyüme adımı
+const MAX_STAGE = 4;           // 0 boş tarh · 1 tohum · 2 filiz · 3 genç bitki · 4 çiçek
+const STAGE_NAMES = ['boş tarh', 'tohum', 'filiz', 'genç bitki', 'çiçek'];
+
+const game = {
+  xp: 240,
+  leaves: 240,
+  streak: 3,
+  countedToday: false,  // bugünkü ilk odak seriye eklendi mi
+  weekMinutes: 95,
+  growthCarry: 0,       // bir sonraki büyüme adımına biriken dakikalar
+  garden: [4, 4, 3, 3, 2, 2, 1, 1, 0, 0, 0, 0],
+  show: { garden: true, xp: true, streak: true, board: false },
+};
+
+// Tabloya katılmayı seçmiş diğer pilot üyeleri (sahte).
+const BOARD_SAMPLE = [
+  { id: 'deniz', minutes: 140 },
+  { id: 'ipek', minutes: 110 },
+  { id: 'ece', minutes: 60 },
+];
+
+const levelOf = (xp) => Math.floor(xp / XP_PER_LEVEL) + 1;
+
+function growGarden(steps) {
+  for (let i = 0; i < steps; i += 1) {
+    const index = game.garden.findIndex((stage) => stage < MAX_STAGE);
+    if (index === -1) game.garden.push(1);
+    else game.garden[index] += 1;
+  }
+}
+
+// Gerçekten katılınan odak dakikalarını ödüle çevirir. Seri sessizce artar; hiçbir değer eksilmez.
+function award(minutes) {
+  if (minutes <= 0) return null;
+  const levelBefore = levelOf(game.xp);
+  game.xp += minutes;
+  game.leaves += minutes;
+  game.weekMinutes += minutes;
+  const total = game.growthCarry + minutes;
+  const steps = Math.floor(total / MINUTES_PER_GROWTH);
+  game.growthCarry = total % MINUTES_PER_GROWTH;
+  growGarden(steps);
+  const level = levelOf(game.xp);
+  if (level > levelBefore) game.garden.push(0); // her yeni seviyede bir tarh açılır
+  if (!game.countedToday) {
+    game.streak += 1;
+    game.countedToday = true;
+  }
+  return { minutes, steps, level: level > levelBefore ? level : 0 };
+}
+
+/* 16×16 ve 8×8 piksel sprite'lar. Her harf bir renk sınıfı, nokta boş piksel. */
+
+const PX = { g: 'px-leaf', G: 'px-leaf-dark', s: 'px-stem', f: 'px-petal', y: 'px-gold', b: 'px-seed', d: 'px-soil', D: 'px-soil-dark' };
+const rowsOf = (size, map) => Array.from({ length: size }, (_, i) => map[i] || '');
+
+const SOIL = { 12: '..dddddddddddd..', 13: '.dDdddDddddDddd.', 14: '.ddddDdddDdddDd.', 15: '..dddddddddddd..' };
+const STEM = { 10: '........s.......', 11: '........s.......' };
+const YOUNG = {
+  4: '.......gg.......',
+  5: '......gGGg......',
+  6: '...gg...s..gg...',
+  7: '..gGGg..s.gGGg..',
+  8: '...gGGgss.gGg...',
+  9: '......g.s.g.....',
+};
+const PLANT_SPRITES = [
+  rowsOf(16, SOIL),
+  rowsOf(16, { ...SOIL, 11: '......DbbD......' }),
+  rowsOf(16, { ...SOIL, ...STEM, 8: '.....gg..gg.....', 9: '......ggsgg.....' }),
+  rowsOf(16, { ...SOIL, ...STEM, ...YOUNG }),
+  rowsOf(16, {
+    ...SOIL, ...STEM, ...YOUNG,
+    1: '.......ff.......', 2: '......fyyf......', 3: '.....ffyyff.....', 4: '......fyyf......', 5: '........s.......',
+  }),
+];
+const PIXEL_ICONS = {
+  star: ['...y....', '...y....', '..yyy...', 'yyyyyyy.', '.yyyyy..', '..yyy...', '.yy.yy..', '.y...y..'],
+  leaf: ['....GGG.', '..GGggG.', '.GgggGG.', '.GggGG..', 'GgGGG...', 'GG......', 'G.......', '........'],
+  calendar: ['D.D.D...', 'DDDDDDD.', 'DdddddD.', 'DdDdDdD.', 'DdddddD.', 'DdDdddD.', 'DDDDDDD.', '........'],
+  sprout: ['........', '.gg..gg.', '.gGg.gG.', '..gGsG..', '....s...', '....s...', '..dddd..', '.dDddDd.'],
+};
+
+function sprite(rows) {
+  let rects = '';
+  rows.forEach((row, y) => {
+    let x = 0;
+    while (x < row.length) {
+      const ch = row[x];
+      let w = 1;
+      while (row[x + w] === ch) w += 1;
+      if (ch !== '.') rects += `<rect class="${PX[ch]}" x="${x}" y="${y}" width="${w}" height="1"/>`;
+      x += w;
+    }
+  });
+  return `<svg class="sprite" viewBox="0 0 ${rows.length} ${rows.length}" shape-rendering="crispEdges" aria-hidden="true" focusable="false">${rects}</svg>`;
+}
+const pixelIcon = (name) => sprite(PIXEL_ICONS[name]);
 
 const PHASE_NAMES = { waiting: 'Bekleme', focus: 'Odak', break: 'Mola' };
 const FOCUS_BLOCKS = { in: 'focus', none: 'join', left: 'left' };
@@ -113,6 +216,12 @@ const els = {
   previewToggle: $('previewToggle'),
   previewPhaseButtons: document.querySelectorAll('[data-goto]'),
   profileButton: document.querySelector('[data-open="profile"]'),
+  stats: $('stats'),
+  summaryReward: $('summaryReward'),
+  gardenCaption: $('gardenCaption'),
+  boardSection: $('boardSection'),
+  boardList: $('boardList'),
+  gameToggles: document.querySelectorAll('[data-game]'),
 };
 
 const timeFormat = new Intl.DateTimeFormat('tr-TR', { hour: '2-digit', minute: '2-digit' });
@@ -182,7 +291,7 @@ function finishFocus() {
   } else {
     const kind = state.participation === 'left' ? 'left' : state.late ? 'late' : 'complete';
     const minutes = kind === 'complete' ? state.duration : Math.floor(state.focusedMs / 60000);
-    state.summary = { kind, minutes, intent: state.turnIntent };
+    state.summary = { kind, minutes, intent: state.turnIntent, reward: award(minutes) };
   }
   startPhase('break');
 }
@@ -299,6 +408,9 @@ function render() {
   renderPeople();
   renderChat();
   renderProfile();
+  renderStats();
+  renderGarden();
+  renderBoard();
   els.previewPhaseButtons.forEach((button) => {
     button.setAttribute('aria-pressed', String(state.view === 'room' && button.dataset.goto === phase));
   });
@@ -309,6 +421,69 @@ function renderSummary() {
   els.summaryLine.textContent = `${minutesText(minutes)} odak · ${SUMMARY_LABELS[kind]}`;
   els.summaryIntent.textContent = intent ? `“${intent}”` : 'Bu tur için niyet eklenmemişti.';
   els.summaryIntent.classList.toggle('is-empty', !intent);
+  renderReward(state.summary.reward);
+}
+
+// Ödül satırları olanı aktarır; kutlama, ünlem ya da kıyas yok.
+function renderReward(reward) {
+  const lines = [];
+  if (reward && game.show.xp) {
+    lines.push(['leaf', `+${reward.minutes} XP · +${reward.minutes} Yaprak`]);
+  }
+  if (reward && game.show.garden) {
+    lines.push(['sprout', reward.steps
+      ? `Bahçen ${reward.steps} adım büyüdü`
+      : 'Dakikaların bir sonraki büyümeye eklendi']);
+  }
+  if (reward && reward.level && game.show.xp) {
+    lines.push(['star', game.show.garden
+      ? `Seviye ${reward.level} · bahçende yeni bir tarh açıldı`
+      : `Seviye ${reward.level}`]);
+  }
+  els.summaryReward.innerHTML = lines
+    .map(([name, text]) => `<li>${pixelIcon(name)}<span>${text}</span></li>`)
+    .join('');
+  els.summaryReward.hidden = !lines.length;
+}
+
+function renderStats() {
+  const items = [];
+  if (game.show.xp) {
+    const into = game.xp % XP_PER_LEVEL;
+    const percent = Math.round((into / XP_PER_LEVEL) * 100);
+    items.push(`<li class="stat">${pixelIcon('star')}<span>Seviye ${levelOf(game.xp)}</span>`
+      + `<span class="xp-bar" aria-hidden="true"><span style="width:${percent}%"></span></span>`
+      + `<span class="visually-hidden">${into} / ${XP_PER_LEVEL} XP</span></li>`);
+    items.push(`<li class="stat">${pixelIcon('leaf')}<span>${game.leaves} Yaprak</span></li>`);
+  }
+  if (game.show.streak) {
+    items.push(`<li class="stat">${pixelIcon('calendar')}<span>Seri: ${game.streak} gün</span></li>`);
+  }
+  els.stats.innerHTML = items.join('');
+  els.stats.hidden = !items.length;
+}
+
+// Bitkilerin kendisi sahnede (scene.js) çizilir; burada yalnızca kısa açıklama güncellenir.
+function renderGarden() {
+  els.gardenCaption.hidden = !game.show.garden;
+  if (!game.show.garden) return;
+  const planted = game.garden.filter((stage) => stage > 0).length;
+  els.gardenCaption.textContent = `Bahçen: ${planted} bitki · Odakta geçen her ${MINUTES_PER_GROWTH} dakika bir bitkiyi bir adım büyütür. Bitkiler solmaz.`;
+}
+
+// Tablo yalnızca kullanıcı katılmayı seçtiğinde görünür; sıra numarası ve alt sıra vurgusu yok.
+function renderBoard() {
+  els.boardSection.hidden = !game.show.board;
+  if (!game.show.board) return;
+  const rows = [...BOARD_SAMPLE, { id: 'me', minutes: game.weekMinutes }]
+    .sort((a, b) => b.minutes - a.minutes);
+  els.boardList.replaceChildren(...rows.map(({ id, minutes }) => {
+    const person = personById(id);
+    const row = el('li', `board-row${id === 'me' ? ' is-me' : ''}`);
+    row.innerHTML = avatarMarkup(person.avatar);
+    row.append(el('span', 'board-name', person.name), el('span', 'board-minutes', `${minutes} dk`));
+    return row;
+  }));
 }
 
 function statusOf(person) {
@@ -503,6 +678,13 @@ els.soundToggle.addEventListener('click', () => {
   chime();
 });
 
+els.gameToggles.forEach((input) => {
+  input.addEventListener('change', () => {
+    game.show[input.dataset.game] = input.checked;
+    render();
+  });
+});
+
 /* Geçici önizleme kontrolü */
 
 const previewFocusElapsed = () => Math.min(7 * 60, state.duration * 60 - 60);
@@ -519,7 +701,7 @@ function goTo(phase) {
   } else {
     // Önceki odak turuna baştan sona katılmış gibi.
     fillSampleIntents();
-    state.summary = { kind: 'complete', minutes: state.duration, intent: me.intent };
+    state.summary = { kind: 'complete', minutes: state.duration, intent: me.intent, reward: award(state.duration) };
     startPhase('break', { elapsed: 60 });
   }
 }
@@ -562,6 +744,10 @@ els.preview.addEventListener('click', (event) => {
   if (button.dataset.goto) goTo(button.dataset.goto);
   else if (button.dataset.arrive) arriveDuring(button.dataset.arrive);
   else if ('next' in button.dataset) skipToPhaseEnd();
+  else if ('nearLevel' in button.dataset) {
+    game.xp = levelOf(game.xp) * XP_PER_LEVEL - 2;
+    render();
+  }
 });
 
 els.previewToggle.addEventListener('click', () => {
@@ -574,5 +760,6 @@ els.previewToggle.addEventListener('click', () => {
 
 renderAvatarPicker();
 render();
+scene.init();
 setInterval(tick, 250);
 document.addEventListener('visibilitychange', tick);
