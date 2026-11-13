@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>PomoDoors</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'%3E%3Crect x='4' y='0' width='3' height='1' fill='%233E672C'/%3E%3Crect x='2' y='1' width='5' height='1' fill='%234E8F3A'/%3E%3Crect x='1' y='2' width='6' height='2' fill='%234E8F3A'/%3E%3Crect x='0' y='4' width='5' height='1' fill='%233E672C'/%3E%3Crect x='0' y='5' width='2' height='2' fill='%233E672C'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Pixelify+Sans:wght@400..700&display=swap">
@@ -41,24 +42,30 @@
   <p class="phase-banner" id="phaseBanner" role="status" aria-live="polite"></p>
 
   <main class="join" id="joinView" aria-labelledby="joinTitle" hidden>
-    <div class="card join-card">
-      <p class="eyebrow" data-i18n="join.eyebrow"></p>
-      <h1 class="join-title" id="joinTitle" data-i18n="join.title"></h1>
-      <p class="join-lede" data-i18n="join.lede"></p>
-      <p class="live-count" id="liveCount" aria-live="polite"></p>
-      <fieldset class="doors" id="joinDoors">
-        <legend data-i18n="doors.legend"></legend>
-        <div class="door-list" id="doorList"></div>
-      </fieldset>
-      <p class="invite-note" id="inviteNote" hidden></p>
-      <form class="join-form" id="joinForm">
-        <label class="join-label" for="nicknameInput" data-i18n="join.label"></label>
-        <input class="text-input" id="nicknameInput" type="text" maxlength="24" autocomplete="nickname" required data-i18n-placeholder="join.placeholder">
-        <button class="btn btn-primary" id="joinBtn" type="submit" data-i18n="join.button"></button>
-      </form>
-      <p class="fine" data-i18n="join.fine"></p>
-      <p class="fine" data-i18n="join.schedule"></p>
-      <p class="join-error" id="joinError" role="alert" hidden></p>
+    <div class="join-layout">
+      <section class="scene-frame join-preview" data-i18n-aria="join.previewAria">
+        <div class="hud join-preview-hud">
+          <p class="eyebrow"><span class="eyebrow-dot" aria-hidden="true"></span><span data-i18n="join.previewTag"></span></p>
+          <p class="live-count" id="liveCount" aria-live="polite"></p>
+        </div>
+        <div class="scene-wrap join-preview-wrap" id="joinSceneWrap">
+          <canvas class="scene join-scene" id="joinScene" width="320" height="192" role="img" data-i18n-aria="join.previewAria"></canvas>
+        </div>
+      </section>
+      <div class="card join-card">
+        <p class="eyebrow" data-i18n="join.eyebrow"></p>
+        <h1 class="join-title" id="joinTitle" data-i18n="join.title"></h1>
+        <p class="join-lede" data-i18n="join.lede"></p>
+        <p class="invite-note" id="inviteNote" hidden></p>
+        <form class="join-form" id="joinForm">
+          <label class="join-label" for="nicknameInput" data-i18n="join.label"></label>
+          <input class="text-input" id="nicknameInput" type="text" maxlength="24" autocomplete="nickname" required data-i18n-placeholder="join.placeholder">
+          <button class="btn btn-primary" id="joinBtn" type="submit" data-i18n="join.button"></button>
+        </form>
+        <p class="fine" data-i18n="join.fine"></p>
+        <p class="fine" data-i18n="join.schedule"></p>
+        <p class="join-error" id="joinError" role="alert" hidden></p>
+      </div>
     </div>
   </main>
 
@@ -169,6 +176,7 @@
           <div class="field">
             <label for="intentInput" id="intentLabel"></label>
             <input class="text-input" id="intentInput" type="text" maxlength="80" autocomplete="off" data-i18n-placeholder="intent.placeholder">
+            <div class="intent-chips" id="intentPresets" role="group" data-i18n-aria="intent.presetsLabel"></div>
             <p class="hint"><span data-i18n="intent.hint"></span><span id="intentCount">0/80</span></p>
           </div>
           <label class="toggle" id="autoJoinRow"><input type="checkbox" id="autoJoin" checked><span id="autoJoinText"></span></label>
@@ -225,7 +233,29 @@
           <span class="count" id="herbCount"></span>
         </div>
         <ul class="herb-grid" id="herbList"></ul>
+        <div class="herb-rare-wrap" id="rareHerbWrap" hidden>
+          <h3 class="herb-rare-title" data-i18n="herb.rareTitle"></h3>
+          <ul class="herb-grid" id="rareHerbList"></ul>
+        </div>
         <p class="fine" data-i18n="herb.fine"></p>
+      </section>
+
+      <section class="cabin card" id="cabinSection" aria-labelledby="cabinTitle">
+        <div class="section-head">
+          <h2 id="cabinTitle" data-i18n="cabin.title"></h2>
+        </div>
+        <ul class="cabin-list" id="cabinList"></ul>
+        <p class="fine" data-i18n="cabin.fine"></p>
+      </section>
+
+      <section class="history card" id="historySection" aria-labelledby="historyTitle">
+        <div class="section-head">
+          <h2 id="historyTitle" data-i18n="history.title"></h2>
+          <span class="count" id="historyCount"></span>
+        </div>
+        <p class="history-empty" id="historyEmpty" data-i18n="history.empty"></p>
+        <ul class="history-list" id="historyList"></ul>
+        <p class="fine" data-i18n="history.fine"></p>
       </section>
 
     </aside>

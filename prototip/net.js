@@ -66,6 +66,8 @@ const net = (() => {
   api.plantSeed = (index, kind) => check(db.rpc('plant_seed', { p_index: index, p_kind: kind, p_room: api.room }));
   api.buySeed = (kind) => check(db.rpc('buy_seed', { p_kind: kind }));
   api.harvest = (index) => check(db.rpc('harvest', { p_index: index, p_room: api.room }));
+  api.buyCabinItem = (item) => check(db.rpc('buy_cabin_item', { p_item: item }));
+  api.history = () => check(db.rpc('my_history'));
   api.weekMinutes = () => check(db.rpc('room_week_minutes', { p_room: api.room }));
 
   api.loadMessages = (sinceIso) => check(db.from('messages').select('*')
@@ -93,6 +95,16 @@ const net = (() => {
           handlers.ready();
         }
       });
+  };
+
+  api.disconnect = async () => {
+    subscribed = false;
+    lastPresence = '';
+    if (channel) {
+      const old = channel;
+      channel = null;
+      await db.removeChannel(old);
+    }
   };
 
   api.track = (payload) => {

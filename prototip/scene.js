@@ -64,10 +64,21 @@ const scene = (() => {
   const TREES = [[1, 0], [18, 0], [0, 9]];
   const SHARED_TREE = [11, 0]; // ortak ağaç: odanın haftalık toplam dakikasıyla büyür
   const SHARED_TREE_STEPS = [0, 60, 200, 500, 1000, 2000];
-  const BUSHES = [[4, 2], [10, 3], [19, 4], [9, 10], [15, 10]];
-  const BENCH = [11, 4];
+  const BUSHES = [[0, 4], [14, 10], [19, 4], [9, 10], [15, 10]];
+  const BENCH = [14, 5];
   const FENCE_Y = 11;
   const FENCE_FROM = 2;
+
+  // Ortak bahçedeki 4 portal kapı (PomoDoors): yürüyerek ya da dokunarak başka evrenlere geçilir.
+  const PORTALS = [
+    { id: 'ders', tx: 1, ty: 3, arch: '#4F6F8A', trim: '#3D566C', door: '#2C4768', light: '#F2D27A' },
+    { id: 'kod', tx: 3, ty: 3, arch: '#3E675E', trim: '#2A4D45', door: '#1E3D37', light: '#7CE0C3' },
+    { id: 'work', tx: 10, ty: 3, arch: '#9C6234', trim: '#6B4526', door: '#5C381C', light: '#F2C14E' },
+    { id: 'hobby', tx: 12, ty: 3, arch: '#A65353', trim: '#783636', door: '#632B2B', light: '#F2B8C6' },
+  ];
+  const UNIVERSE_ROOMS = ['ders', 'kod', 'work', 'hobby'];
+  const hasPortals = () => !state.online || net.room === 'ortak';
+  const isUniverse = () => state.online && UNIVERSE_ROOMS.includes(net.room);
 
   const MY_PLOT = { x: 2, y: 8, cols: 5, rows: 3 };
   const OTHER_PLOT_X = [8, 11, 14, 17];
@@ -76,26 +87,33 @@ const scene = (() => {
   // Ayak konumları (karo biriminde). Diğerleri odadaki sıralarına göre yerleşir.
   const MY_SPOTS = { plot: [4.5, 7.9], gather: [7.5, 4.9], cabin: [6.4, 4.8], path: [7.5, 5.7] };
   const OTHER_PLOT_SPOTS = OTHER_PLOT_X.map((x) => [x + 1, 7.9]);
+  const UNIVERSE_SPOTS = {
+    myFocus: [4.5, 6.2],
+    myWait: [9.5, 10.2],
+    myLeft: [7.5, 9.8],
+    otherFocus: [[7.5, 6.2], [10.5, 6.2], [13.5, 6.2], [16.5, 6.2], [4.5, 8.8], [7.5, 8.8], [13.5, 8.8], [16.5, 8.8]],
+    gather: [[6.5, 7.6], [8.5, 7.8], [11.5, 7.6], [13.5, 7.9], [7.5, 9.1], [10.5, 9.1], [12.5, 9.1], [15.5, 8.2]],
+  };
 
-  // Bahçe sakinleri: odada her zaman bulunan iki karakter. Gerçek kullanıcı değiller; katılımcı
+  // Bahçe sakinleri: ortak bahçede her zaman bulunan iki karakter. Gerçek kullanıcı değiller; katılımcı
   // listesinde görünmezler, sahnede etiketleri ayrı biçimdedir. Odakta ortak ağacın yanında çalışır,
   // molada ve beklemede yavaşça dolaşır, ara sıra el sallarlar.
   const RESIDENTS = [
     {
       id: 'resident-fatih', name: 'Fatih', resident: true, status: 'focus',
       look: { skin: 2, hair: 0, shirt: 3, style: 0 },
-      work: [12.7, 2.8],
-      wander: [[12.4, 4.7], [15.6, 6.6], [13.4, 6.6], [17.4, 5.2]],
+      work: [13.4, 4.6],
+      wander: [[12.4, 4.7], [15.6, 6.6], [13.4, 6.6], [18.4, 5.2]],
     },
     {
       id: 'resident-melis', name: 'Melis', resident: true, status: 'focus',
       look: { skin: 1, hair: 2, shirt: 5, style: 1 },
-      work: [10.6, 2.6],
+      work: [11.5, 2.4],
       wander: [[10.4, 4.8], [8.6, 6.6], [11.4, 6.6], [6.4, 6.6]],
     },
   ];
-  const everyone = () => [...people, ...RESIDENTS];
-  const GATHER_SPOTS = [[9, 4.9], [10.4, 5.5], [12.6, 5.4], [16.8, 5.3], [9.8, 6.6], [12, 6.6], [14.2, 6.6], [16.4, 6.6]];
+  const everyone = () => (isUniverse() ? people : [...people, ...RESIDENTS]);
+  const GATHER_SPOTS = [[9, 4.9], [10.4, 5.5], [12.6, 5.4], [18.4, 5.3], [9.8, 6.6], [12, 6.6], [14.2, 6.6], [16.4, 6.6]];
   const extraSpot = (i) => [3 + (i % 10) * 1.6, 5.4 + Math.floor(i / 10) * 0.5];
 
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
@@ -105,8 +123,13 @@ const scene = (() => {
   let wrap;
   let labels;
   let hint;
+  let previewCanvas;
+  let previewCtx;
+  let previewWrap;
   let staticLayer;
   let staticKey = '';
+  let loopStarted = false;
+  let roomBound = false;
   let scale = 1;
   let lastTime = 0;
   let clock = 0;
@@ -117,7 +140,9 @@ const scene = (() => {
   const keys = new Set();
   const actors = {};
   const labelNodes = {};
+  const portalNodes = {};
   const emotes = {};       // kişi kimliği -> { kind, until }
+  let portalBusy = false;
 
   /* Yardımcılar */
 
@@ -202,6 +227,25 @@ const scene = (() => {
   }
 
   /* Nesneler */
+
+  function drawPortalDoor(g, portal) {
+    const x = portal.tx * T;
+    const y = portal.ty * T - 6;
+    // Gölge ve taş eşik
+    rect(g, x + 1, y + 21, 14, 2, C.shadow);
+    rect(g, x + 1, y + 20, 14, 3, C.stoneDark);
+    rect(g, x + 1, y + 20, 14, 1, C.stone);
+    // Kemerli kapı çerçevesi
+    rect(g, x + 2, y + 2, 12, 19, portal.trim);
+    rect(g, x + 3, y, 10, 3, portal.arch);
+    rect(g, x + 1, y + 2, 14, 2, portal.arch);
+    if (snowy) rect(g, x + 3, y, 10, 2, '#F4F7F5');
+    // Kapı kanadı ve ışıklı pencere
+    rect(g, x + 4, y + 4, 8, 16, portal.door);
+    rect(g, x + 6, y + 6, 4, 5, portal.light);
+    rect(g, x + 6, y + 13, 4, 5, portal.trim);
+    rect(g, x + 10, y + 12, 1, 2, C.gold);
+  }
 
   function cabin(g) {
     const x = CABIN.x * T;
@@ -359,7 +403,7 @@ const scene = (() => {
 
   const PLAZA = { x: 10, y: 4, w: 3, h: 2 };
   const PLAZA_LANTERNS = [[9, 5], [13, 5]];
-  const FOUNTAIN = { x: 3, y: 4 };
+  const FOUNTAIN = { x: 16, y: 4 };
   const GREENHOUSE = { x: 17, y: 2, w: 3, h: 2 };
   const FESTIVAL_X = [2, 6, 10, 14, 18];
 
@@ -447,10 +491,10 @@ const scene = (() => {
   }
 
   // Akşam ve gece fenerlerin ışığı (sahne karartıldıktan sonra çizilir).
-  function drawGlow(stage) {
+  function drawGlow(stage, target = ctx) {
     const glow = (x, y) => {
-      rect(ctx, x - 3, y - 3, 10, 9, 'rgba(242, 210, 122, .18)');
-      rect(ctx, x, y, 4, 3, '#F2D27A');
+      rect(target, x - 3, y - 3, 10, 9, 'rgba(242, 210, 122, .18)');
+      rect(target, x, y, 4, 3, '#F2D27A');
     };
     if (stage >= 1) PLAZA_LANTERNS.forEach(([tx, ty]) => glow(tx * T + 6, ty * T + 2));
     if (stage >= 4) FESTIVAL_X.forEach((tx) => glow(tx * T + 6, 6 * T + 3));
@@ -467,7 +511,13 @@ const scene = (() => {
   BUSHES.forEach(([tx, ty]) => block(tx, ty));
   block(...BENCH);
   for (let tx = FENCE_FROM; tx < COLS; tx += 1) block(tx, FENCE_Y);
-  GROUND.forEach((row, ty) => [...row].forEach((ch, tx) => { if (ch === 'W') block(tx, ty); }));
+  const WATER_TILES = [];
+  GROUND.forEach((row, ty) => [...row].forEach((ch, tx) => {
+    if (ch === 'W') {
+      block(tx, ty);
+      WATER_TILES.push([tx, ty]);
+    }
+  }));
 
   const unlockBlocked = new Set();
   function rebuildUnlockBlocked(stage) {
@@ -483,11 +533,18 @@ const scene = (() => {
 
   function isBlocked(x, y) {
     const points = [[x - 0.3, y - 0.05], [x + 0.3, y - 0.05], [x - 0.3, y - 0.3], [x + 0.3, y - 0.3]];
-    const walls = mode === 'home' ? HOME_BLOCKED : blocked;
+    const walls = mode === 'home' ? HOME_BLOCKED : isUniverse() ? UNIVERSE_BLOCKED : blocked;
     return points.some(([px, py]) => {
       const key = `${Math.floor(px)},${Math.floor(py)}`;
       if (px < 0 || py < 0 || px >= COLS || py >= ROWS) return true;
-      return walls.has(key) || (mode !== 'home' && unlockBlocked.has(key));
+      if (walls.has(key)) return true;
+      if (mode !== 'home' && !isUniverse()) {
+        if (unlockBlocked.has(key)) return true;
+        if (hasPortals() && PORTALS.some((p) => Math.floor(px) === p.tx && (Math.floor(py) === p.ty || Math.floor(py) === p.ty - 1))) {
+          return true;
+        }
+      }
+      return false;
     });
   }
 
@@ -518,6 +575,7 @@ const scene = (() => {
     drawUnlocks(g, sharedTreeStage());
     TREES.forEach(([tx, ty]) => tree(g, tx, ty));
     sharedTree(g);
+    if (hasPortals()) PORTALS.forEach((portal) => drawPortalDoor(g, portal));
   }
 
   /* Bitkiler */
@@ -618,6 +676,18 @@ const scene = (() => {
   function targetFor(person) {
     if (person.resident) return residentTarget(person, RESIDENTS.indexOf(person));
     const status = statusOf(person);
+    if (isUniverse()) {
+      if (person === me) {
+        if (status === 'focus') return UNIVERSE_SPOTS.myFocus;
+        if (status === 'left') return UNIVERSE_SPOTS.myLeft;
+        return UNIVERSE_SPOTS.myWait;
+      }
+      const slot = people.indexOf(person) - 1;
+      if (status === 'focus') return UNIVERSE_SPOTS.otherFocus[slot] || extraSpot(slot);
+      if (status === 'left' || status === 'none') return [8 + (slot % 4) * 1.1, 8.8 + Math.floor(slot / 4) * 0.6];
+      if (person.pos) return [person.pos.x, person.pos.y];
+      return UNIVERSE_SPOTS.gather[slot] || extraSpot(slot);
+    }
     if (person === me) {
       if (status === 'focus') return MY_SPOTS.plot;
       if (status === 'left') return MY_SPOTS.cabin;
@@ -632,9 +702,10 @@ const scene = (() => {
     return GATHER_SPOTS[slot] || extraSpot(slot);
   }
 
-  const canRoam = () => state.phase !== 'focus' && state.view === 'room';
+  // Aktif odak turuna katılmışken dolaşmak kapalıdır; henüz katılmayan kişi kapılardan geçebilir.
+  const canRoam = () => state.view === 'room' && (state.phase !== 'focus' || state.participation !== 'in');
 
-  function updateActors(dt) {
+  function updateActors(dt, list = everyone()) {
     Object.keys(actors).forEach((id) => {
       if (!personById(id) && !RESIDENTS.some((resident) => resident.id === id)) {
         delete actors[id];
@@ -642,7 +713,7 @@ const scene = (() => {
         delete labelNodes[id];
       }
     });
-    everyone().forEach((person) => {
+    list.forEach((person) => {
       const target = targetFor(person);
       let actor = actors[person.id];
       if (!actor) {
@@ -653,10 +724,12 @@ const scene = (() => {
       if (person === me && canRoam()) {
         const wasMoving = actor.moving;
         moveByKeys(actor, dt);
-        if (actor.moving) net.sendMove({ x: actor.x, y: actor.y, dir: actor.dir, flip: actor.flip });
-        else if (wasMoving) {
-          net.sendMove({ x: actor.x, y: actor.y, dir: actor.dir, flip: actor.flip }, true);
-          trackPresence(); // sonradan gelenler de son konumu görsün
+        if (state.phase !== 'focus') {
+          if (actor.moving) net.sendMove({ x: actor.x, y: actor.y, dir: actor.dir, flip: actor.flip });
+          else if (wasMoving) {
+            net.sendMove({ x: actor.x, y: actor.y, dir: actor.dir, flip: actor.flip }, true);
+            trackPresence(); // sonradan gelenler de son konumu görsün
+          }
         }
         return;
       }
@@ -684,6 +757,18 @@ const scene = (() => {
     });
   }
 
+  function nearbyPortal(actor) {
+    if (!hasPortals() || mode === 'home') return null;
+    return PORTALS.find((p) => Math.abs(actor.x - (p.tx + 0.5)) < 0.65 && actor.y >= p.ty + 0.7 && actor.y <= p.ty + 1.5) || null;
+  }
+
+  function triggerPortal(id) {
+    if (portalBusy || typeof onEnterPortal !== 'function') return;
+    portalBusy = true;
+    keys.clear();
+    Promise.resolve(onEnterPortal(id)).finally(() => { portalBusy = false; });
+  }
+
   // Molada kullanıcı kendi yerine geri gönderilmez; dolaştığı yerde kalır.
   function moveByKeys(actor, dt) {
     let dx = 0;
@@ -695,12 +780,14 @@ const scene = (() => {
     if (!dx && !dy && actor.goal) {
       const gx = actor.goal[0] - actor.x;
       const gy = actor.goal[1] - actor.y;
-      if (Math.hypot(gx, gy) < 0.12) {
+      if (Math.hypot(gx, gy) < 0.14) {
         const action = actor.goal[2];
         actor.goal = null;
         actor.moving = false;
         if (action === 'door') enterHome();
         else if (action === 'exit') leaveHome();
+        else if (action === 'return') triggerPortal('ortak');
+        else if (typeof action === 'string' && action.startsWith('portal:')) triggerPortal(action.slice(7));
         else if (action) plantHere();
         return;
       }
@@ -720,6 +807,24 @@ const scene = (() => {
     const before = [actor.x, actor.y];
     if (!isBlocked(nx, actor.y)) actor.x = nx;
     if (!isBlocked(actor.x, ny)) actor.y = ny;
+    // Kapıya doğrudan yürüyen kullanıcı eşikteyse otomatik olarak içeri geçer.
+    if (dy < -0.1 && before[1] === actor.y) {
+      const portal = nearbyPortal(actor);
+      if (portal) {
+        actor.goal = null;
+        triggerPortal(portal.id);
+        return;
+      }
+      if (!isUniverse() && mode === 'garden' && Math.abs(actor.x - 7.5) < 0.65 && actor.y <= 4.45) {
+        actor.goal = null;
+        enterHome();
+        return;
+      }
+    }
+    if (isUniverse() && actor.y > 11.2) {
+      triggerPortal('ortak');
+      return;
+    }
     // Dokunarak verilen hedefe ulaşılamıyorsa (engel) yürüme durur.
     if (actor.goal && before[0] === actor.x && before[1] === actor.y) actor.goal = null;
     actor.moving = true;
@@ -737,7 +842,7 @@ const scene = (() => {
     }
   }
 
-  function drawCharacter(person, actor) {
+  function drawCharacter(person, actor, target = ctx) {
     const look = normalizeLook(person.look);
     const palette = characterPalette(look);
     const frame = actor.moving ? Math.floor(actor.walk / 0.16) % 2 : 0;
@@ -746,15 +851,15 @@ const scene = (() => {
     const rows = characterRows(look, actor.dir, frame);
     const left = Math.round(actor.x * T) - 8;
     const top = Math.round(actor.y * T) - 15 + bob;
-    ctx.globalAlpha = statusOf(person) === 'left' ? 0.55 : 1;
-    rect(ctx, left + 4, Math.round(actor.y * T) - 1, 8, 2, C.shadow);
+    target.globalAlpha = statusOf(person) === 'left' ? 0.55 : 1;
+    rect(target, left + 4, Math.round(actor.y * T) - 1, 8, 2, C.shadow);
     rows.forEach((row, py) => {
       for (let px = 0; px < 16; px += 1) {
         const ch = row[actor.flip ? 15 - px : px];
-        if (ch !== '.') rect(ctx, left + px, top + py, 1, 1, palette[ch]);
+        if (ch !== '.') rect(target, left + px, top + py, 1, 1, palette[ch]);
       }
     });
-    ctx.globalAlpha = 1;
+    target.globalAlpha = 1;
   }
 
   /* Ad etiketleri ve konuşma balonları: keskin ve okunaklı kalsın diye HTML katmanında */
@@ -786,11 +891,43 @@ const scene = (() => {
     return speakers[(speakers.length - 1 + turn) % speakers.length];
   }
 
+  function updatePortalLabels(shown) {
+    const items = [];
+    if (hasPortals() && state.online) {
+      PORTALS.forEach((p) => {
+        const count = (typeof lobbyCounts !== 'undefined' && lobbyCounts[p.id]) || 0;
+        const text = count ? `${t(`room.${p.id}`)} · ${count}` : t(`room.${p.id}`);
+        items.push({ key: p.id, text, x: (p.tx + 0.5) * T, y: p.ty * T - 8, hasPeople: count > 0, isReturn: false });
+      });
+    } else if (isUniverse()) {
+      items.push({ key: 'return', text: t('portal.return'), x: (HOME_DOOR.x + 1) * T, y: HOME_DOOR.y * T - 6, hasPeople: false, isReturn: true });
+    }
+    const activeKeys = new Set(items.map((item) => item.key));
+    Object.keys(portalNodes).forEach((key) => {
+      if (!activeKeys.has(key)) {
+        portalNodes[key].remove();
+        delete portalNodes[key];
+      }
+    });
+    items.forEach((item) => {
+      let node = portalNodes[item.key];
+      if (!node) {
+        node = document.createElement('span');
+        labels.append(node);
+        portalNodes[item.key] = node;
+      }
+      node.className = `scene-portal${item.hasPeople ? ' has-people' : ''}${item.isReturn ? ' is-return' : ''}`;
+      node.textContent = item.text;
+      node.style.transform = `translate(${item.x * shown}px, ${item.y * shown}px) translate(-50%, -100%)`;
+    });
+  }
+
   function updateLabels() {
     const speaker = currentSpeaker();
     // Ölçek her karede canvas'ın gerçek boyutundan okunur; yeniden boyutlamada etiketler kaymaz.
     const shown = canvas.clientWidth / W || scale;
     labels.style.left = `${canvas.offsetLeft}px`;
+    updatePortalLabels(shown);
     everyone().forEach((person) => {
       const actor = actors[person.id];
       if (!actor) return;
@@ -845,11 +982,9 @@ const scene = (() => {
 
   function baseHint() {
     if (mode === 'home') return t('home.hint');
-    if (state.phase === 'focus') {
-      return state.participation === 'in'
-        ? t('hint.focusIn')
-        : t('hint.focusOut');
-    }
+    if (state.phase === 'focus' && state.participation === 'in') return t('hint.focusIn');
+    if (isUniverse()) return t('hint.roamUniverse', { name: t(`room.${net.room}`) });
+    if (state.phase === 'focus') return t('hint.focusOut');
     return game.show.garden
       ? t('hint.roamGarden')
       : t('hint.roam');
@@ -872,6 +1007,10 @@ const scene = (() => {
 
   function plantHere() {
     if (!canRoam() || !game.show.garden) return;
+    if (state.phase !== 'break') {
+      showHint(t('hint.focusPlant'));
+      return;
+    }
     const actor = actors[me.id];
     const tx = Math.floor(actor.x);
     const ty = Math.floor(actor.y - 0.1);
@@ -896,10 +1035,155 @@ const scene = (() => {
     hintUntil = performance.now() + 2800;
   }
 
+  /* Portal evrenleri: Ders (kütüphane), Kod (gece atölyesi), İş (çalışma salonu), Hobi (cam sera) */
+
+  const HOME_DOOR = { x: 9, y: 11 };
+  const UNIVERSE_BLOCKED = new Set();
+  (() => {
+    for (let tx = 0; tx < COLS; tx += 1) {
+      for (let ty = 0; ty < 3; ty += 1) UNIVERSE_BLOCKED.add(`${tx},${ty}`);
+      if (tx < HOME_DOOR.x || tx > HOME_DOOR.x + 1) UNIVERSE_BLOCKED.add(`${tx},11`);
+    }
+    [[3, 4], [4, 4], [5, 4], [6, 4], [7, 4], [8, 4], [10, 4], [11, 4], [12, 4], [13, 4], [14, 4], [15, 4], [16, 4]].forEach(([tx, ty]) => UNIVERSE_BLOCKED.add(`${tx},${ty}`));
+    [[1, 3], [18, 3]].forEach(([tx, ty]) => UNIVERSE_BLOCKED.add(`${tx},${ty}`));
+  })();
+  let universeLayer;
+  let universeKey = '';
+
+  const UNIVERSE_THEMES = {
+    ders: { wall: '#DFCFAF', stripe: '#D4C29E', floor: '#A67546', seam: '#875C34', trim: '#5E3D22', rug: '#8A444E', rugIn: '#A35A64', door: '#3B5C85', wrap: '#5E3D22' },
+    kod: { wall: '#323846', stripe: '#2B303D', floor: '#524438', seam: '#3E332A', trim: '#232730', rug: '#2F6B5E', rugIn: '#3D8272', door: '#2E6B62', wrap: '#232730' },
+    work: { wall: '#ECE0C6', stripe: '#E2D3B4', floor: '#C2955E', seam: '#A67844', trim: '#6B4526', rug: '#7E949A', rugIn: '#98ACB1', door: '#9C6234', wrap: '#6B4526' },
+    hobby: { wall: '#C6DDD1', stripe: '#B2CFC0', floor: '#C98A68', seam: '#A86E4E', trim: '#5E8C4A', rug: '#E3B458', rugIn: '#ECC578', door: '#A65353', wrap: '#4E6B46' },
+  };
+
+  function drawSkyWindow(g, x, y, w, h, frameColor, part, mullions = 1) {
+    rect(g, x - 2, y - 2, w + 4, h + 4, frameColor);
+    const sky = part.lit ? '#1B2542' : part.name === 'dusk' ? '#F09D64' : part.name === 'dawn' ? '#F4B88A' : '#BFE3F0';
+    rect(g, x, y, w, h, sky);
+    if (part.lit) {
+      for (let i = 0; i < Math.max(3, Math.floor(w / 10)); i += 1) {
+        rect(g, x + 3 + Math.floor(hash(i, x, 7) * (w - 6)), y + 3 + Math.floor(hash(i, y, 9) * (h - 6)), 1, 1, '#F2D27A');
+      }
+    }
+    for (let i = 1; i <= mullions; i += 1) {
+      rect(g, x + Math.round((w * i) / (mullions + 1)), y, 2, h, frameColor);
+    }
+  }
+
+  function drawDeskRow(g, part, kind) {
+    [48, 96, 160, 208].forEach((x, idx) => {
+      rect(g, x, 64, 40, 14, kind === 'kod' ? '#3B342E' : '#8A5A36');
+      rect(g, x, 64, 40, 2, kind === 'kod' ? '#524840' : '#B9864F');
+      rect(g, x + 3, 78, 3, 6, '#4E3420');
+      rect(g, x + 34, 78, 3, 6, '#4E3420');
+      if (kind === 'kod') {
+        rect(g, x + 10, 54, 18, 11, '#1E232B');
+        rect(g, x + 12, 56, 14, 7, idx % 2 ? '#7CE0C3' : '#8CC9E6');
+        rect(g, x + 31, 61, 4, 4, '#F4F1EA');
+      } else if (kind === 'ders') {
+        rect(g, x + 8, 59, 12, 6, '#F4F1EA');
+        rect(g, x + 9, 60, 4, 4, '#D9C49E');
+        rect(g, x + 28, 53, 2, 11, '#2B2622');
+        rect(g, x + 24, 50, 10, 5, '#F2D27A');
+      } else if (kind === 'work') {
+        rect(g, x + 9, 55, 16, 10, '#3B4A66');
+        rect(g, x + 11, 57, 12, 6, part.lit ? '#8CC9E6' : '#DCEBF2');
+        rect(g, x + 29, 58, 6, 6, '#E8D9B5');
+      } else {
+        rect(g, x + 6, 56, 10, 8, '#F4F1EA');
+        rect(g, x + 8, 58, 6, 4, ['#E07A6A', '#F2C14E', '#78B455', '#B58BD6'][idx]);
+        rect(g, x + 23, 56, 7, 8, '#A9754A');
+        rect(g, x + 24, 52, 5, 5, '#4E8F3A');
+      }
+    });
+  }
+
+  function drawUniverse(part) {
+    const id = UNIVERSE_ROOMS.includes(net.room) ? net.room : 'ders';
+    const theme = UNIVERSE_THEMES[id];
+    const g = universeLayer.getContext('2d');
+    rect(g, 0, 0, W, H, theme.floor);
+    for (let y = 48; y < H; y += 8) rect(g, 0, y, W, 1, theme.seam);
+    for (let y = 48, row = 0; y < H; y += 8, row += 1) {
+      for (let x = (row % 2) * 16; x < W; x += 32) rect(g, x, y, 1, 8, theme.seam);
+    }
+    rect(g, 0, 0, W, 46, theme.wall);
+    for (let x = 0; x < W; x += 10) rect(g, x, 0, 2, 46, theme.stripe);
+    rect(g, 0, 44, W, 4, theme.trim);
+
+    if (id === 'ders') {
+      [14, 126, 266].forEach((bx) => {
+        rect(g, bx, 6, 40, 38, '#5E3D22');
+        [10, 21, 32].forEach((sy) => {
+          rect(g, bx + 2, sy + 8, 36, 2, '#3E2715');
+          ['#B85C7A', '#2F6B5E', '#E3B458', '#4F6F8A', '#C78A6C', '#78B455'].forEach((c, i) => rect(g, bx + 3 + i * 6, sy, 5, 8, c));
+        });
+      });
+      drawSkyWindow(g, 72, 8, 36, 28, '#5E3D22', part, 1);
+      drawSkyWindow(g, 194, 8, 36, 28, '#5E3D22', part, 1);
+    } else if (id === 'kod') {
+      drawSkyWindow(g, 64, 6, 176, 28, '#1E232B', part, 3);
+      rect(g, 14, 18, 34, 26, '#3B342E');
+      rect(g, 20, 12, 12, 10, '#7E949A');
+      rect(g, 22, 14, 8, 5, '#F2D27A');
+      rect(g, 262, 10, 40, 34, '#232730');
+      rect(g, 268, 16, 28, 10, '#2F6B5E');
+      rect(g, 268, 30, 12, 10, '#E3B458');
+    } else if (id === 'work') {
+      rect(g, 20, 10, 48, 24, '#6B4526');
+      rect(g, 23, 13, 42, 18, '#D9B26F');
+      [[27, 16, '#F4F1EA'], [39, 18, '#F2C14E'], [51, 15, '#A6D17F']].forEach(([px, py, c]) => rect(g, px, py, 8, 6, c));
+      drawSkyWindow(g, 92, 8, 56, 26, '#6B4526', part, 2);
+      drawSkyWindow(g, 172, 8, 56, 26, '#6B4526', part, 2);
+      rect(g, 256, 18, 44, 26, '#7A5132');
+      rect(g, 264, 10, 10, 10, '#C78A6C');
+      rect(g, 280, 12, 8, 8, '#F4F1EA');
+    } else {
+      drawSkyWindow(g, 18, 4, 84, 34, '#5E8C4A', part, 2);
+      drawSkyWindow(g, 118, 4, 84, 34, '#5E8C4A', part, 2);
+      drawSkyWindow(g, 218, 4, 84, 34, '#5E8C4A', part, 2);
+      [24, 62, 132, 184, 240, 284].forEach((vx) => {
+        rect(g, vx, 4, 4, 12, '#4E8F3A');
+        rect(g, vx + 1, 16, 2, 6, '#78B455');
+      });
+      rect(g, 266, 86, 22, 26, '#7A5132');
+      rect(g, 269, 88, 16, 14, '#F4F1EA');
+      rect(g, 272, 91, 10, 4, '#8CC9E6');
+      rect(g, 272, 95, 10, 5, '#6FAE4A');
+    }
+
+    drawDeskRow(g, part, id);
+    rect(g, 88, 106, 144, 44, theme.rug);
+    rect(g, 94, 110, 132, 36, theme.rugIn);
+    [[16, 52], [290, 52]].forEach(([x, y]) => {
+      rect(g, x, y + 8, 10, 8, '#A9754A');
+      rect(g, x - 1, y, 12, 9, '#4E8F3A');
+    });
+    rect(g, 0, 176, W, 16, theme.trim);
+    rect(g, HOME_DOOR.x * T, 176, 32, 16, theme.door);
+    rect(g, HOME_DOOR.x * T + 4, 166, 24, 8, '#C9A46A');
+  }
+
+  function resetRoom(fromRoom = '') {
+    mode = 'garden';
+    keys.clear();
+    Object.keys(actors).forEach((id) => delete actors[id]);
+    Object.keys(labelNodes).forEach((id) => { labelNodes[id].remove(); delete labelNodes[id]; });
+    Object.keys(portalNodes).forEach((id) => { portalNodes[id].remove(); delete portalNodes[id]; });
+    staticKey = '';
+    universeKey = '';
+    const portal = PORTALS.find((p) => p.id === fromRoom);
+    if (net.room === 'ortak' && portal) {
+      actors[me.id] = { x: portal.tx + 0.5, y: portal.ty + 1.45, dir: 'down', flip: false, moving: false, walk: 0, roamed: true, goal: null };
+    } else if (isUniverse()) {
+      actors[me.id] = { x: HOME_DOOR.x + 1, y: 10.1, dir: 'up', flip: false, moving: false, walk: 0, roamed: true, goal: null };
+    }
+  }
+
   /* Evin içi: kişisel çalışma köşesi. Yalnızca molada ve beklemede; içeride diğerleri görünmez. */
 
   let mode = 'garden';
-  const HOME_DOOR = { x: 9, y: 11 };
   const homeActor = { x: 10, y: 10.6, dir: 'up', flip: false, moving: false, walk: 0, roamed: true, goal: null };
   const HOME_BLOCKED = new Set();
   (() => {
@@ -970,10 +1254,69 @@ const scene = (() => {
       rect(g, x - 1, y, 12, 9, '#4E8F3A');
       rect(g, x + 3, y - 3, 4, 4, '#5E9A3C');
     });
+    // Kişisel kulübe eşyaları (Yaprak ekonomisiyle açılır)
+    const owned = new Set(game.cabin || []);
+    if (owned.has('plant')) {
+      rect(g, 43, 1, 8, 5, '#A9754A');
+      rect(g, 41, 4, 11, 4, '#4E8F3A');
+      rect(g, 49, 8, 3, 8, '#2F6B5E');
+      rect(g, 44, 8, 2, 5, '#4E8F3A');
+    }
+    if (owned.has('lantern')) {
+      rect(g, 188, 0, 2, 8, '#4E3420');
+      rect(g, 185, 8, 8, 9, '#6B4526');
+      rect(g, 187, 10, 4, 5, '#F2D27A');
+    }
+    if (owned.has('tea')) {
+      rect(g, 106, 39, 16, 7, '#7A5132');
+      rect(g, 108, 36, 12, 3, '#A9754A');
+      rect(g, 110, 32, 5, 4, '#C78A6C');
+      rect(g, 116, 33, 3, 3, '#FFF8E8');
+    }
+    if (owned.has('cat')) {
+      rect(g, 87, 25, 7, 6, '#E8833A');
+      rect(g, 87, 23, 2, 2, '#E8833A');
+      rect(g, 92, 23, 2, 2, '#E8833A');
+      rect(g, 89, 26, 1, 1, '#2B2622');
+      rect(g, 91, 26, 1, 1, '#2B2622');
+    }
+    if (owned.has('turntable')) {
+      rect(g, 251, 35, 14, 6, '#5C3A21');
+      rect(g, 253, 34, 8, 3, '#2B2622');
+      rect(g, 262, 36, 2, 3, '#D9534F');
+    }
+    if (owned.has('cushion')) {
+      rect(g, 144, 104, 24, 14, '#7E4D6B');
+      rect(g, 146, 106, 20, 10, '#9E6689');
+      rect(g, 152, 108, 8, 6, '#F4F1EA');
+      rect(g, 156, 108, 1, 6, '#C8C1B4');
+    }
     // Kapı (alt duvar) ve paspas
     rect(g, 0, 176, W, 16, '#6B4526');
     rect(g, HOME_DOOR.x * T, 176, 32, 16, '#3E672C');
     rect(g, HOME_DOOR.x * T + 4, 166, 24, 8, '#C9A46A');
+  }
+
+  function drawHomeAmbience(now) {
+    if (reduceMotion.matches) return;
+    const owned = new Set(game.cabin || []);
+    if (owned.has('lantern')) {
+      const pulse = 0.14 + 0.06 * Math.sin(now / 650);
+      rect(ctx, 181, 6, 16, 14, `rgba(242, 210, 122, ${pulse.toFixed(2)})`);
+    }
+    if (owned.has('tea')) {
+      const dy = Math.floor(now / 500) % 3;
+      rect(ctx, 112, 29 - dy, 1, 2, 'rgba(255, 248, 232, .7)');
+      rect(ctx, 117, 30 - ((dy + 1) % 3), 1, 2, 'rgba(255, 248, 232, .55)');
+    }
+    if (owned.has('cat')) {
+      const wag = Math.floor(now / 700) % 2;
+      rect(ctx, 94, 28 + wag, 2, 2, '#E8833A');
+    }
+    if (owned.has('turntable')) {
+      const spin = Math.floor(now / 260) % 2;
+      rect(ctx, 256 + spin, 35, 1, 1, '#E3B458');
+    }
   }
 
   function enterHome() {
@@ -992,7 +1335,116 @@ const scene = (() => {
     keys.clear();
   }
 
-  /* Döngü */
+  /* Döngü ve sakin atmosfer */
+
+  function ensureLayers() {
+    if (!staticLayer) {
+      staticLayer = document.createElement('canvas');
+      staticLayer.width = W;
+      staticLayer.height = H;
+    }
+    if (!homeLayer) {
+      homeLayer = document.createElement('canvas');
+      homeLayer.width = W;
+      homeLayer.height = H;
+    }
+    if (!universeLayer) {
+      universeLayer = document.createElement('canvas');
+      universeLayer.width = W;
+      universeLayer.height = H;
+    }
+  }
+
+  function drawAtmosphere(target, part, { preview }) {
+    const animated = !reduceMotion.matches;
+
+    // Göl üzerinde yavaş parıltı
+    if (animated && WATER_TILES.length) {
+      const slot = Math.floor(clock * 1.4);
+      [0, 3].forEach((offset) => {
+        const [tx, ty] = WATER_TILES[(slot + offset) % WATER_TILES.length];
+        const rx = tx * T + 3 + ((slot + offset) % 7);
+        const ry = ty * T + 4 + (((slot + offset) * 3) % 8);
+        rect(target, rx, ry, 3, 1, C.waterLight);
+      });
+    }
+
+    // Kulübe bacasından ince duman
+    if (animated) {
+      const puff = Math.floor(clock * 1.5) % 3;
+      const cx = CABIN.x * T + 63 + (puff === 1 ? 1 : 0);
+      rect(target, cx, 1, 2, 1, 'rgba(244, 241, 234, .55)');
+      if (puff !== 2) rect(target, cx + 1, 0, 2, 1, 'rgba(244, 241, 234, .35)');
+    }
+
+    // Kışın yavaş yağan kar taneleri
+    if (snowy && animated) {
+      for (let i = 0; i < 16; i += 1) {
+        const sx = Math.round((hash(i, 1, 7) * W + Math.sin(clock * 0.8 + i) * 6 + W) % W);
+        const sy = Math.round((hash(i, 2, 13) * H + clock * (9 + (i % 4) * 2)) % H);
+        rect(target, sx, sy, i % 3 === 0 ? 2 : 1, 1, 'rgba(244, 247, 245, .8)');
+      }
+    }
+
+    // Akşam ve gece ateşböcekleri (kış hariç)
+    if (part.lit && !snowy && animated) {
+      for (let i = 0; i < 7; i += 1) {
+        const phase = clock * 1.1 + i * 1.9;
+        const alpha = 0.25 + 0.65 * (0.5 + 0.5 * Math.sin(phase * 1.7));
+        const fx = Math.round(40 + hash(i, 4, 21) * (W - 70) + Math.sin(phase) * 8);
+        const fy = Math.round(36 + hash(i, 5, 29) * (H - 56) + Math.cos(phase * 0.8) * 5);
+        rect(target, fx, fy, 1, 1, `rgba(242, 210, 122, ${alpha.toFixed(2)})`);
+      }
+    }
+
+    // Odakta çalışanların yanında sakin sıcak fener ve büyüyen tarh parıltısı
+    if (!preview && state.phase === 'focus') {
+      everyone().forEach((person) => {
+        if (person.resident || statusOf(person) !== 'focus') return;
+        const actor = actors[person.id];
+        if (!actor) return;
+        const lx = Math.round(actor.x * T) + 7;
+        const ly = Math.round(actor.y * T) - 4;
+        rect(target, lx - 2, ly - 2, 6, 6, part.lit ? 'rgba(242, 210, 122, .26)' : 'rgba(242, 210, 122, .14)');
+        rect(target, lx, ly, 2, 2, '#F2D27A');
+      });
+      if (animated && state.participation === 'in' && game.show.garden) {
+        const growing = visibleGarden().findIndex((s) => s < MAX_STAGE);
+        if (growing !== -1 && growing < MY_PLOT.cols * MY_PLOT.rows) {
+          const [tx, ty] = plotTile(growing);
+          const pulse = Math.floor(clock * 2) % 4;
+          if (pulse < 2) {
+            rect(target, tx * T + 7, ty * T + 3 - pulse, 1, 1, '#A6D17F');
+          }
+        }
+      }
+    }
+  }
+
+  function renderGarden(target, part, stage, list, { preview }) {
+    target.clearRect(0, 0, W, H);
+    target.drawImage(staticLayer, 0, 0);
+    const garden = preview ? [] : visibleGarden();
+    if (!preview) drawPlants(garden);
+    list
+      .map((person) => [person, actors[person.id]])
+      .filter(([, actor]) => actor)
+      .sort((a, b) => a[1].y - b[1].y)
+      .forEach(([person, actor]) => drawCharacter(person, actor, target));
+
+    if (part.tint) rect(target, 0, 0, W, H, part.tint);
+    if (part.lit) {
+      // Akşam ve gece: sahne kararır, pencereler yanık kalır.
+      [CABIN.x * T + 14, CABIN.x * T + 54].forEach((wx) => {
+        rect(target, wx, CABIN.y * T + 43, 12, 8, C.glassLit);
+        rect(target, wx + 5, CABIN.y * T + 43, 1, 8, C.woodDark);
+        rect(target, wx, CABIN.y * T + 46, 12, 1, C.woodDark);
+      });
+      drawGlow(stage, target);
+    }
+    drawAtmosphere(target, part, { preview });
+    return garden;
+  }
 
   function frame(time) {
     const dt = Math.min(0.05, (time - lastTime) / 1000 || 0);
@@ -1002,28 +1454,76 @@ const scene = (() => {
     const part = dayPart();
     const stage = sharedTreeStage();
     const season = currentSeason();
-    const key = `${part.name}|${game.show.garden}|${stage}|${season}`;
-    if (key !== staticKey) {
+    const key = `${net.room}|${part.name}|${game.show.garden}|${stage}|${season}`;
+    if (key !== staticKey && !isUniverse()) {
       applySeason(season);
       rebuildUnlockBlocked(stage);
       drawStatic();
       staticKey = key;
     }
-    // Odak başlarsa ya da profil açılırsa kişi bahçeye döner.
+
+    if (!state.online) {
+      if (previewCtx) {
+        if (previewWrap) previewWrap.style.background = edgeColor(part);
+        updateActors(dt, RESIDENTS);
+        renderGarden(previewCtx, part, stage, RESIDENTS, { preview: true });
+      }
+      requestAnimationFrame(frame);
+      return;
+    }
+
+    // Odak başlarsa ya da profil açılırsa kişi evin içinden bahçeye döner.
     if (mode === 'home' && !canRoam()) leaveHome();
+    if (isUniverse()) {
+      const theme = UNIVERSE_THEMES[net.room] || UNIVERSE_THEMES.ders;
+      wrap.style.background = theme.wrap;
+      updateActors(dt);
+      const uKey = `${net.room}|${part.name}`;
+      if (uKey !== universeKey) {
+        drawUniverse(part);
+        universeKey = uKey;
+      }
+      ctx.clearRect(0, 0, W, H);
+      ctx.drawImage(universeLayer, 0, 0);
+      everyone()
+        .map((person) => [person, actors[person.id]])
+        .filter(([, actor]) => actor)
+        .sort((a, b) => a[1].y - b[1].y)
+        .forEach(([person, actor]) => drawCharacter(person, actor, ctx));
+      if (part.lit) rect(ctx, 0, 0, W, H, 'rgba(18, 22, 52, .16)');
+      if (state.phase === 'focus') {
+        everyone().forEach((person) => {
+          if (statusOf(person) !== 'focus') return;
+          const actor = actors[person.id];
+          if (!actor) return;
+          const lx = Math.round(actor.x * T) + 7;
+          const ly = Math.round(actor.y * T) - 4;
+          rect(ctx, lx - 2, ly - 2, 6, 6, 'rgba(242, 210, 122, .24)');
+          rect(ctx, lx, ly, 2, 2, '#F2D27A');
+        });
+      }
+      labels.hidden = false;
+      updateLabels();
+      updateText(visibleGarden());
+      requestAnimationFrame(frame);
+      return;
+    }
+
     wrap.style.background = mode === 'home' ? '#6B4526' : edgeColor(part);
     updateActors(dt);
 
     if (mode === 'home') {
-      if (part.name !== homeKey) {
+      const nextHomeKey = `${part.name}|${(game.cabin || []).join(',')}`;
+      if (nextHomeKey !== homeKey) {
         drawHome(part);
-        homeKey = part.name;
+        homeKey = nextHomeKey;
       }
       moveByKeys(homeActor, dt);
       if (homeActor.y > 11.3) leaveHome();
       ctx.clearRect(0, 0, W, H);
       ctx.drawImage(homeLayer, 0, 0);
-      drawCharacter(me, homeActor);
+      drawHomeAmbience(now);
+      drawCharacter(me, homeActor, ctx);
       if (part.lit) rect(ctx, 0, 0, W, H, 'rgba(18, 22, 52, .18)');
       labels.hidden = true;
       updateText(visibleGarden());
@@ -1032,26 +1532,7 @@ const scene = (() => {
     }
     labels.hidden = false;
 
-    ctx.clearRect(0, 0, W, H);
-    ctx.drawImage(staticLayer, 0, 0);
-    const garden = visibleGarden();
-    drawPlants(garden);
-    everyone()
-      .map((person) => [person, actors[person.id]])
-      .filter(([, actor]) => actor)
-      .sort((a, b) => a[1].y - b[1].y)
-      .forEach(([person, actor]) => drawCharacter(person, actor));
-
-    if (part.tint) rect(ctx, 0, 0, W, H, part.tint);
-    if (part.lit) {
-      // Akşam ve gece: sahne kararır, pencereler yanık kalır.
-      [CABIN.x * T + 14, CABIN.x * T + 54].forEach((wx) => {
-        rect(ctx, wx, CABIN.y * T + 43, 12, 8, C.glassLit);
-        rect(ctx, wx + 5, CABIN.y * T + 43, 1, 8, C.woodDark);
-        rect(ctx, wx, CABIN.y * T + 46, 12, 1, C.woodDark);
-      });
-      drawGlow(stage);
-    }
+    const garden = renderGarden(ctx, part, stage, everyone(), { preview: false });
 
     residentEmotes();
     updateLabels();
@@ -1100,74 +1581,116 @@ const scene = (() => {
     a: 'left', d: 'right', w: 'up', s: 'down', A: 'left', D: 'right', W: 'up', S: 'down',
   };
 
+  function initPreview() {
+    previewCanvas = document.getElementById('joinScene');
+    previewWrap = document.getElementById('joinSceneWrap');
+    if (!previewCanvas) return;
+    ensureLayers();
+    previewCanvas.width = W;
+    previewCanvas.height = H;
+    previewCtx = previewCanvas.getContext('2d');
+    if (!loopStarted) {
+      loopStarted = true;
+      requestAnimationFrame(frame);
+    }
+  }
+
   function init() {
+    previewCanvas = null;
+    previewCtx = null;
+    previewWrap = null;
     canvas = document.getElementById('scene');
     wrap = document.getElementById('sceneWrap');
     labels = document.getElementById('sceneLabels');
     hint = document.getElementById('sceneHint');
     ctx = canvas.getContext('2d');
-    staticLayer = document.createElement('canvas');
-    staticLayer.width = W;
-    staticLayer.height = H;
-    homeLayer = document.createElement('canvas');
-    homeLayer.width = W;
-    homeLayer.height = H;
+    ensureLayers();
     canvas.width = W;
     canvas.height = H;
 
-    canvas.addEventListener('keydown', (event) => {
-      const dir = KEY_MAP[event.key];
-      if (dir) {
-        event.preventDefault();
-        if (canRoam()) keys.add(dir);
-      } else if (event.key === 'e' || event.key === 'E' || event.key === ' ' || event.key === 'Enter') {
-        event.preventDefault();
-        if (mode === 'home') {
-          if (homeActor.y > 10.2) leaveHome();
+    if (!roomBound) {
+      roomBound = true;
+      canvas.addEventListener('keydown', (event) => {
+        const dir = KEY_MAP[event.key];
+        if (dir) {
+          event.preventDefault();
+          if (canRoam()) keys.add(dir);
+        } else if (event.key === 'e' || event.key === 'E' || event.key === ' ' || event.key === 'Enter') {
+          event.preventDefault();
+          if (mode === 'home') {
+            if (homeActor.y > 10.2) leaveHome();
+            return;
+          }
+          const mine = actors[me.id];
+          if (!mine || !canRoam()) return;
+          if (isUniverse()) {
+            if (mine.y > 10.2) triggerPortal('ortak');
+            return;
+          }
+          const portal = nearbyPortal(mine);
+          if (portal) triggerPortal(portal.id);
+          else if (Math.hypot(mine.x - 7.5, mine.y - 4.2) < 0.9) enterHome();
+          else plantHere();
+        }
+      });
+      canvas.addEventListener('keyup', (event) => {
+        const dir = KEY_MAP[event.key];
+        if (dir) keys.delete(dir);
+      });
+      canvas.addEventListener('blur', () => keys.clear());
+      // Dokunma ya da tıklama: karakter o noktaya yürür; kapıya dokunulduysa o evrene geçer.
+      canvas.addEventListener('pointerdown', (event) => {
+        canvas.focus();
+        const mine = actors[me.id];
+        if (!mine) return;
+        const box = canvas.getBoundingClientRect();
+        const x = ((event.clientX - box.left) / box.width) * COLS;
+        const y = ((event.clientY - box.top) / box.height) * ROWS;
+        const tx = Math.floor(x);
+        const ty = Math.floor(y);
+        if (!canRoam()) {
+          const hitPortal = hasPortals() && PORTALS.some((p) => tx === p.tx && (ty === p.ty || ty === p.ty - 1));
+          const hitExit = isUniverse() && ty >= HOME_DOOR.y && tx >= HOME_DOOR.x && tx < HOME_DOOR.x + 2;
+          if (hitPortal || hitExit) showHint(t('portal.focusLocked'));
           return;
         }
-        const mine = actors[me.id];
-        if (mine && canRoam() && Math.hypot(mine.x - 7.5, mine.y - 4.2) < 0.9) enterHome();
-        else plantHere();
-      }
-    });
-    canvas.addEventListener('keyup', (event) => {
-      const dir = KEY_MAP[event.key];
-      if (dir) keys.delete(dir);
-    });
-    canvas.addEventListener('blur', () => keys.clear());
-    // Dokunma ya da tıklama: karakter o noktaya yürür; boş bir tarha dokunulduysa orada tohum eker.
-    canvas.addEventListener('pointerdown', (event) => {
-      canvas.focus();
-      const mine = actors[me.id];
-      if (!canRoam() || !mine) return;
-      const box = canvas.getBoundingClientRect();
-      const x = ((event.clientX - box.left) / box.width) * COLS;
-      const y = ((event.clientY - box.top) / box.height) * ROWS;
-      const tx = Math.floor(x);
-      const ty = Math.floor(y);
-      const col = tx - MY_PLOT.x;
-      const row = ty - MY_PLOT.y;
-      const onPlot = col >= 0 && col < MY_PLOT.cols && row >= 0 && row < MY_PLOT.rows;
-      const index = row * MY_PLOT.cols + col;
-      if (mode === 'home') {
-        const atDoor = ty >= HOME_DOOR.y && tx >= HOME_DOOR.x && tx < HOME_DOOR.x + 2;
-        homeActor.goal = atDoor ? [HOME_DOOR.x + 1, 11.6, 'exit'] : [x, y + 0.3, false];
-        return;
-      }
-      if (tx === 7 && ty === 3) {
-        mine.goal = [7.5, 4.25, 'door'];
-        return;
-      }
-      const stage = game.garden[index];
-      const act = onPlot && game.show.garden && (stage === 0 || stage === MAX_STAGE);
-      if (onPlot && game.show.garden && stage > 0 && stage < MAX_STAGE) showHint(t('hint.occupied', { name: t(`stageName.${stage}`) }));
-      mine.goal = onPlot ? [tx + 0.5, ty + 0.75, act] : [x, y + 0.3, false];
-    });
+        if (mode === 'home') {
+          const atDoor = ty >= HOME_DOOR.y && tx >= HOME_DOOR.x && tx < HOME_DOOR.x + 2;
+          homeActor.goal = atDoor ? [HOME_DOOR.x + 1, 11.6, 'exit'] : [x, y + 0.3, false];
+          return;
+        }
+        if (isUniverse()) {
+          const atReturn = ty >= HOME_DOOR.y && tx >= HOME_DOOR.x && tx < HOME_DOOR.x + 2;
+          mine.goal = atReturn ? [HOME_DOOR.x + 1, 11.5, 'return'] : [x, y + 0.3, false];
+          return;
+        }
+        const portal = hasPortals() && PORTALS.find((p) => tx === p.tx && (ty === p.ty || ty === p.ty - 1));
+        if (portal) {
+          mine.goal = [portal.tx + 0.5, portal.ty + 1.35, `portal:${portal.id}`];
+          return;
+        }
+        const col = tx - MY_PLOT.x;
+        const row = ty - MY_PLOT.y;
+        const onPlot = col >= 0 && col < MY_PLOT.cols && row >= 0 && row < MY_PLOT.rows;
+        const index = row * MY_PLOT.cols + col;
+        if (tx === 7 && ty === 3) {
+          mine.goal = [7.5, 4.35, 'door'];
+          return;
+        }
+        const stage = game.garden[index];
+        const act = onPlot && game.show.garden && state.phase === 'break' && (stage === 0 || stage === MAX_STAGE);
+        if (onPlot && game.show.garden && state.phase !== 'break') showHint(t('hint.focusPlant'));
+        else if (onPlot && game.show.garden && stage > 0 && stage < MAX_STAGE) showHint(t('hint.occupied', { name: t(`stageName.${stage}`) }));
+        mine.goal = onPlot ? [tx + 0.5, ty + 0.75, act] : [x, y + 0.3, false];
+      });
 
-    new ResizeObserver(fit).observe(wrap);
+      new ResizeObserver(fit).observe(wrap);
+    }
     fit();
-    requestAnimationFrame(frame);
+    if (!loopStarted) {
+      loopStarted = true;
+      requestAnimationFrame(frame);
+    }
   }
 
   // Kullanıcının son konumu; presence ile paylaşılır.
@@ -1193,5 +1716,5 @@ const scene = (() => {
     emotes[id] = { kind, until: clock + 3 };
   }
 
-  return { init, myPosition, showEmote, showHint, sharedTreeStage, SHARED_TREE_STEPS, isHome: () => mode === 'home' };
+  return { init, initPreview, resetRoom, myPosition, showEmote, showHint, sharedTreeStage, SHARED_TREE_STEPS, isHome: () => mode === 'home' };
 })();

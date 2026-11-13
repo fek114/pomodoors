@@ -58,6 +58,8 @@ const game = {
   gardenKinds: [],
   seeds: {},            // tohum kesesi: { çeşit: adet }
   herbarium: {},        // hasat edilen çeşitler: { çeşit: kaç kez }
+  cabin: [],            // kişisel kulübe eşyaları
+  history: [],          // kişisel son odak turları (yalnızca kullanıcıya görünür)
   show: { garden: true, xp: true, streak: true, board: true, ...readShow() },
 };
 
@@ -166,6 +168,7 @@ const els = {
   blocks: document.querySelectorAll('[data-block]'),
   startForm: $('startForm'),
   intentInput: $('intentInput'),
+  intentPresets: $('intentPresets'),
   intentCount: $('intentCount'),
   intentLabel: $('intentLabel'),
   autoJoin: $('autoJoin'),
@@ -227,6 +230,14 @@ const els = {
   herbSection: $('herbSection'),
   herbList: $('herbList'),
   herbCount: $('herbCount'),
+  rareHerbWrap: $('rareHerbWrap'),
+  rareHerbList: $('rareHerbList'),
+  cabinSection: $('cabinSection'),
+  cabinList: $('cabinList'),
+  historySection: $('historySection'),
+  historyCount: $('historyCount'),
+  historyEmpty: $('historyEmpty'),
+  historyList: $('historyList'),
   companionList: $('companionList'),
   devButtons: document.querySelectorAll('[data-timing]'),
   profileDone: $('profileDone'),
@@ -391,6 +402,7 @@ function applyProfile(profile) {
   game.gardenKinds = [...(profile.garden_kinds || [])];
   game.seeds = { ...(profile.seeds || {}) };
   game.herbarium = { ...(profile.herbarium || {}) };
+  game.cabin = [...(profile.cabin_items || [])];
 }
 
 async function refreshProfile() {
@@ -528,6 +540,8 @@ function render() {
   renderBoard();
   renderSeeds();
   renderHerbarium();
+  renderCabin();
+  renderHistory();
   renderEmotes();
   trackPresence();
 }
@@ -641,23 +655,29 @@ function renderBoard() {
 
 /* Herbaryum: hasat edilen çeşitlerin koleksiyonu. Tamamlama baskısı yok. */
 
+function herbCard(kind, times, { rare = false } = {}) {
+  const item = el('li', `herb-card${times ? '' : ' is-unknown'}${rare ? ' is-rare' : ''}`);
+  item.innerHTML = `<span class="seed-icon">${seedIcon(kind)}</span>`;
+  item.append(el('span', 'herb-name', times ? t(`seed.${kind}`) : t('herb.unknown')));
+  if (rare) item.append(el('span', 'herb-rare-tag', t('herb.rareTag')));
+  if (times) item.append(el('span', 'herb-times', t('herb.times', { n: times })));
+  return item;
+}
+
 function renderHerbarium() {
   els.herbSection.hidden = !game.show.garden;
   if (!game.show.garden) return;
   const found = ALL_KINDS.filter((kind) => (game.herbarium[kind] || 0) > 0).length;
   els.herbCount.textContent = t('herb.count', { n: found });
-  els.herbList.replaceChildren(...ALL_KINDS.map((kind) => {
-    const times = game.herbarium[kind] || 0;
-    const item = el('li', `herb-card${times ? '' : ' is-unknown'}`);
-    item.innerHTML = `<span class="seed-icon">${seedIcon(kind)}</span>`;
-    item.append(el('span', 'herb-name', times ? t(`seed.${kind}`) : t('herb.unknown')));
-    if (times) item.append(el('span', 'herb-times', t('herb.times', { n: times })));
-    return item;
-  }));
+  els.herbList.replaceChildren(...ALL_KINDS.map((kind) => herbCard(kind, game.herbarium[kind] || 0)));
+  const rareFound = RARE_KINDS.filter((kind) => (game.herbarium[kind] || 0) > 0);
+  els.rareHerbWrap.hidden = !rareFound.length;
+  els.rareHerbList.replaceChildren(...rareFound.map((kind) => herbCard(kind, game.herbarium[kind], { rare: true })));
 }
 
 // Molada olgun bitkiyi hasat etme (scene.js çağırır). Tarh boşalır, Yaprak kazanılır, herbaryuma eklenir.
 async function onHarvest(index) {
+  if (state.phase !== 'break') return;
   try {
     const result = await net.harvest(index);
     game.garden = [...result.garden];
@@ -665,8 +685,8 @@ async function onHarvest(index) {
     game.leaves = result.leaves;
     game.herbarium = { ...result.herbarium };
     const plant = t(`seed.${result.kind}`);
-    scene.showHint(t('harvest.done', { name: plant, n: result.reward }));
-    feedEvent(t('feed.harvest', { name: me.name, plant }));
+    scene.showHint(t(result.rare ? 'harvest.rare' : 'harvest.done', { name: plant, n: result.reward }));
+    feedEvent(t(result.rare ? 'feed.harvestRare' : 'feed.harvest', { name: me.name, plant }));
     render();
   } catch (error) {
     console.error(error);
@@ -679,10 +699,12 @@ const social = { leaders: [], companions: [] };
 
 async function refreshSocial() {
   try {
-    const [leaders, companions] = await Promise.all([net.leaderboard(), net.companions()]);
+    const [leaders, companions, rows] = await Promise.all([net.leaderboard(), net.companions(), net.history()]);
     social.leaders = leaders || [];
     social.companions = companions || [];
+    game.history = rows || [];
     renderBoard();
+    renderHistory();
   } catch (error) {
     console.error(error);
   }
@@ -724,7 +746,7 @@ function renderCompanions() {
 
 /* Odalar: temalı kapılar, ev sahibi odaları, canlı sayaç */
 
-const PUBLIC_ROOMS = ['ortak', 'ders', 'kod', 'yazi'];
+const PUBLIC_ROOMS = ['ortak'];
 const ROOM_KEY = 'pomodoors.room';
 let roomRow = null;
 let lobbyCounts = {};
@@ -733,21 +755,69 @@ const isHosted = (id) => id.startsWith('r-');
 const roomTitle = () => (roomRow && roomRow.name) || t(`room.${net.room}`);
 const roomLink = (id) => `${location.origin}${location.pathname}?oda=${encodeURIComponent(id)}`;
 
+async function switchRoom(id) {
+  const prev = net.room;
+  if (id === prev && state.online) return;
+  try {
+    await net.disconnect();
+    net.room = id;
+    let room = await net.loadRoom();
+    if (!room) {
+      net.room = 'ortak';
+      room = await net.loadRoom();
+    }
+    roomRow = room;
+    try {
+      localStorage.setItem(ROOM_KEY, isHosted(net.room) ? net.room : 'ortak');
+    } catch {
+      // Tercih bu oturumla sınırlı kalır.
+    }
+    const targetUrl = net.room === 'ortak' ? location.pathname : `?oda=${encodeURIComponent(net.room)}`;
+    history.replaceState(null, '', targetUrl);
+    state.turnStart = 0;
+    state.summary = null;
+    applyParticipation(null);
+    messages.length = 0;
+    els.messages.replaceChildren();
+    people.splice(1);
+    presenceReady = false;
+    setTiming(roomRow);
+    game.roomWeekMinutes = await net.weekMinutes();
+    scene.resetRoom(prev);
+    net.trackLobby();
+    refreshSocial();
+    enterPhase(roomPhase(), { silent: true });
+    net.connect({ presence: onPresence, move: onMove, emote: onEmote, room: onRoom, message: onMessage, ready: trackPresence });
+    renderDoors();
+    render();
+    document.title = `PomoDoors · ${roomTitle()}`;
+  } catch (error) {
+    console.error(error);
+    showToast(t('toast.error'));
+  }
+}
+
+function onEnterPortal(id) {
+  return switchRoom(id);
+}
+
 function goToRoom(id) {
   if (id === net.room && state.online) {
     els.roomsDialog.close();
     return;
   }
+  if (state.online) {
+    els.roomsDialog.close();
+    switchRoom(id);
+    return;
+  }
   try {
-    localStorage.setItem(ROOM_KEY, id);
+    localStorage.setItem(ROOM_KEY, isHosted(id) ? id : 'ortak');
   } catch {
     // Tercih bu oturumla sınırlı kalır.
   }
-  if (state.online) location.href = roomLink(id);
-  else {
-    net.room = id;
-    renderDoors();
-  }
+  net.room = id;
+  renderDoors();
 }
 
 function doorButton(id) {
@@ -767,10 +837,10 @@ function renderDoors() {
   const total = Object.values(lobbyCounts).reduce((sum, n) => sum + n, 0);
   els.liveCount.textContent = total ? t('live.total', { n: total }) : t('live.none');
   const invited = isHosted(net.room);
-  els.joinDoors.hidden = invited;
+  if (els.joinDoors) els.joinDoors.hidden = true;
+  if (els.doorList) els.doorList.replaceChildren();
   els.inviteNote.hidden = !invited;
   els.inviteNote.textContent = t('invite.note');
-  els.doorList.replaceChildren(...PUBLIC_ROOMS.map(doorButton));
   els.roomsDoorList.replaceChildren(...PUBLIC_ROOMS.map(doorButton));
   els.shareRow.hidden = !isHosted(net.room);
   if (state.online) els.roomButton.textContent = t('room.change', { name: roomTitle() });
@@ -784,11 +854,11 @@ function chooseInitialRoom() {
   } catch {
     saved = null;
   }
-  const id = fromLink || saved || 'ortak';
+  const id = fromLink || (saved && isHosted(saved) ? saved : 'ortak');
   net.room = /^[a-z0-9-]{2,20}$/.test(id) ? id : 'ortak';
 }
 
-[els.doorList, els.roomsDoorList].forEach((list) => {
+[els.doorList, els.roomsDoorList].filter(Boolean).forEach((list) => {
   list.addEventListener('click', (event) => {
     const button = event.target.closest('[data-room]');
     if (button) goToRoom(button.dataset.room);
@@ -827,6 +897,7 @@ els.hostForm.addEventListener('submit', async (event) => {
 
 const SEED_KINDS = [0, 1, 2, 3, 4];
 const ALL_KINDS = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+const RARE_KINDS = ALL_KINDS.map((kind) => kind + 10);
 // Sunucudaki seed_price ile aynı. 5-8 mevsim tohumları: 5 kabak, 6 kardelen, 7 gelincik, 8 lavanta.
 const SEED_PRICES = { 0: 0, 1: 15, 2: 30, 3: 20, 4: 40, 5: 25, 6: 25, 7: 25, 8: 25 };
 
@@ -865,15 +936,83 @@ const SEED_ICON_COLORS = {
   8: { p: '#9B7BC8', g: '#4E8F3A' },
 };
 
-function seedIcon(kind) {
-  const colors = SEED_ICON_COLORS[kind];
+const RARE_ICON_COLORS = {
+  10: { w: '#DDE8F2', y: '#B4D6EE', g: '#5FA897' },
+  11: { f: '#9ED8F6', g: '#5FA897' },
+  12: { y: '#B59DF0', B: '#2B2B5C', g: '#5FA897' },
+  13: { o: '#F2C94C', g: '#5FA897' },
+  14: { f: '#F7F7F2', w: '#C7E6F5', g: '#5FA897' },
+  15: { o: '#ECE6D8', O: '#9BA9C7', g: '#5FA897' },
+  16: { w: '#BEE8F7', g: '#4A7F9B' },
+  17: { f: '#F0A83A', k: '#4E2A14', g: '#5FA897' },
+  18: { p: '#F2D27A', g: '#5FA897' },
+};
+
+const CABIN_ITEMS = [
+  { id: 'tea', price: 25, rows: ['..s.s...', '.s.s....', '.cccccc.', '.cwccwc.', '.cccccc.', 'dddddddd', '........', '........'], colors: { s: '#F4F1EA', c: '#C78A6C', w: '#FFF8E8', d: '#7A5132' } },
+  { id: 'lantern', price: 30, rows: ['...k....', '..kkk...', '.kgggk..', '.kgggk..', '.kgggk..', '..kkk...', '........', '........'], colors: { k: '#6B4526', g: '#F2D27A' } },
+  { id: 'cat', price: 35, rows: ['.c...c..', '.ccccc..', '.cycyc..', '..ccc...', '.cccc...', 'ccccc...', 'c...cc..', '........'], colors: { c: '#E8833A', y: '#2B2622' } },
+  { id: 'plant', price: 40, rows: ['..dddd..', '.ddddd..', '..gggg..', '.gGggGg.', '.g.g..g.', '...g....', '..g.....', '........'], colors: { d: '#A9754A', g: '#4E8F3A', G: '#2F6B5E' } },
+  { id: 'turntable', price: 45, rows: ['........', '.bbbbbb.', '.bkkkbb.', '.bkykbr.', '.bkkkbb.', '.bbbbbb.', '........', '........'], colors: { b: '#7A5132', k: '#2B2622', y: '#E3B458', r: '#D9534F' } },
+  { id: 'cushion', price: 50, rows: ['........', '.pppppp.', 'pppppppp', 'pppppppp', '.pppppp.', '..wwww..', '.wwwww..', '........'], colors: { p: '#B85C7A', w: '#F4F1EA' } },
+];
+
+function spriteGrid(rows, colors) {
   let rects = '';
-  SEED_ICONS[kind].forEach((row, y) => {
+  rows.forEach((row, y) => {
     [...row].forEach((ch, x) => {
       if (colors[ch]) rects += `<rect x="${x}" y="${y}" width="1" height="1" fill="${colors[ch]}"/>`;
     });
   });
   return `<svg class="sprite" viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true" focusable="false">${rects}</svg>`;
+}
+
+function seedIcon(kind) {
+  const base = kind >= 10 ? kind - 10 : kind;
+  const colors = kind >= 10 ? RARE_ICON_COLORS[kind] : SEED_ICON_COLORS[base];
+  return spriteGrid(SEED_ICONS[base], colors);
+}
+
+function renderCabin() {
+  els.cabinSection.hidden = !game.show.garden;
+  if (!game.show.garden) return;
+  els.cabinList.replaceChildren(...CABIN_ITEMS.map(({ id, price, rows, colors }) => {
+    const owned = game.cabin.includes(id);
+    const row = el('li', 'cabin-row');
+    const iconSpan = el('span', 'seed-icon');
+    iconSpan.innerHTML = spriteGrid(rows, colors);
+    row.append(iconSpan, el('span', 'cabin-name', t(`cabin.item.${id}`)));
+    if (owned) {
+      row.append(el('span', 'cabin-owned', t('cabin.owned')));
+    } else {
+      const buy = el('button', 'btn btn-quiet btn-small cabin-buy', t('cabin.buy', { price }));
+      buy.type = 'button';
+      buy.dataset.cabin = id;
+      buy.disabled = game.leaves < price;
+      if (buy.disabled) buy.title = t('cabin.notEnough', { price });
+      row.append(buy);
+    }
+    return row;
+  }));
+}
+
+function formatHistoryMeta(row) {
+  const ms = new Date(row.turn_started_at).getTime();
+  const roomName = t(`room.${row.room_id}`) === `room.${row.room_id}` ? row.room_id : t(`room.${row.room_id}`);
+  const day = new Intl.DateTimeFormat(lang, { month: 'short', day: 'numeric' }).format(new Date(ms));
+  return `${t('history.item', { room: roomName, min: row.reward_minutes })} · ${day} ${wallClock(ms)}`;
+}
+
+function renderHistory() {
+  const rows = game.history || [];
+  els.historyCount.textContent = rows.length ? t('history.count', { n: rows.length }) : '';
+  els.historyEmpty.hidden = rows.length > 0;
+  els.historyList.replaceChildren(...rows.map((row) => {
+    const item = el('li', 'history-row');
+    const intent = el('p', `history-intent${row.intent ? '' : ' is-empty'}`, row.intent || t('history.noIntent'));
+    item.append(intent, el('p', 'history-meta', formatHistoryMeta(row)));
+    return item;
+  }));
 }
 
 function renderSeeds() {
@@ -1125,10 +1264,30 @@ function chime() {
 
 /* Etkileşimler */
 
+const INTENT_PRESETS = ['intent.preset.1', 'intent.preset.2', 'intent.preset.3', 'intent.preset.4'];
+
+function renderIntentPresets() {
+  if (!els.intentPresets) return;
+  els.intentPresets.replaceChildren(...INTENT_PRESETS.map((key) => {
+    const btn = el('button', 'intent-chip', t(key));
+    btn.type = 'button';
+    btn.dataset.preset = key;
+    return btn;
+  }));
+}
+
 els.intentInput.addEventListener('input', () => {
   me.intent = els.intentInput.value.trim();
   els.intentCount.textContent = `${els.intentInput.value.length}/${MAX_INTENT}`;
   renderPeople();
+});
+
+els.intentPresets?.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-preset]');
+  if (!button) return;
+  els.intentInput.value = t(button.dataset.preset);
+  els.intentInput.dispatchEvent(new Event('input'));
+  els.intentInput.focus();
 });
 
 els.autoJoin.addEventListener('change', () => {
@@ -1207,6 +1366,7 @@ els.gameToggles.forEach((input) => {
 
 // Molada boş tarha seçili tohumu ekme (scene.js çağırır). Arayüz hemen günceller, sunucu doğrular.
 function onPlantSeed(index) {
+  if (state.phase !== 'break') return;
   const kind = state.seedKind;
   if (kind > 0 && !(game.seeds[kind] > 0)) {
     scene.showHint(t('seeds.none', { name: t(`seed.${kind}`) }));
@@ -1245,6 +1405,24 @@ els.seedList.addEventListener('click', async (event) => {
   } catch (error) {
     console.error(error);
     showToast(t('seeds.notEnough', { price: SEED_PRICES[button.dataset.buy] }));
+  }
+  render();
+});
+
+els.cabinList?.addEventListener('click', async (event) => {
+  const button = event.target.closest('[data-cabin]');
+  if (!button) return;
+  const item = button.dataset.cabin;
+  const entry = CABIN_ITEMS.find((x) => x.id === item);
+  button.disabled = true;
+  try {
+    const result = await net.buyCabinItem(item);
+    game.leaves = result.leaves;
+    game.cabin = [...(result.cabin_items || [])];
+    showToast(t('cabin.bought', { name: t(`cabin.item.${item}`) }));
+  } catch (error) {
+    console.error(error);
+    if (entry) showToast(t('cabin.notEnough', { price: entry.price }));
   }
   render();
 });
@@ -1452,6 +1630,7 @@ els.langToggle.addEventListener('click', () => {
   els.soundState.textContent = t(state.sound ? 'sound.on' : 'sound.off');
   renderLookEditor();
   renderDoors();
+  renderIntentPresets();
   if (els.tourDialog.open) renderTour();
   lastClock = '';
   render();
@@ -1491,6 +1670,8 @@ function onMessage(row) {
   addMessage(row);
 }
 
+let roomLoopsStarted = false;
+
 async function enterRoom(profile) {
   applyProfile(profile);
   els.joinView.hidden = true;
@@ -1505,7 +1686,7 @@ async function enterRoom(profile) {
   }
   roomRow = room;
   try {
-    localStorage.setItem(ROOM_KEY, net.room);
+    localStorage.setItem(ROOM_KEY, isHosted(net.room) ? net.room : 'ortak');
   } catch {
     // Tercih bu oturumla sınırlı kalır.
   }
@@ -1513,15 +1694,19 @@ async function enterRoom(profile) {
   game.roomWeekMinutes = await net.weekMinutes();
   net.trackLobby();
   refreshSocial();
-  setInterval(refreshSocial, 60000);
   renderDoors();
   state.online = true;
+  document.title = `PomoDoors · ${roomTitle()}`;
   renderLookEditor();
   enterPhase(roomPhase(), { silent: true });
   net.connect({ presence: onPresence, move: onMove, emote: onEmote, room: onRoom, message: onMessage, ready: trackPresence });
   scene.init();
-  setInterval(tick, 250);
-  document.addEventListener('visibilitychange', tick);
+  if (!roomLoopsStarted) {
+    roomLoopsStarted = true;
+    setInterval(refreshSocial, 60000);
+    setInterval(tick, 250);
+    document.addEventListener('visibilitychange', tick);
+  }
   maybeShowTour();
 }
 
@@ -1529,6 +1714,7 @@ function showJoin(message = '') {
   els.joinView.hidden = false;
   els.roomView.hidden = true;
   document.body.classList.add('is-joining');
+  scene.initPreview?.();
   els.joinError.textContent = message;
   els.joinError.hidden = !message;
   els.nicknameInput.focus();
@@ -1571,6 +1757,7 @@ async function boot() {
     renderDoors();
   });
   renderDoors();
+  renderIntentPresets();
   render();
   try {
     const userId = await net.restoreSession();

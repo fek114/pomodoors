@@ -49,7 +49,7 @@ Kamera yok, suçluluk yok. PomoDoors başlamayı kolaylaştırmayı, birilerinin
 
 ## Oyunlaştırma
 
-Oyun öğeleri kişiye eşlik etmek için var; baskı kurmak, cezalandırmak ya da utandırmak için değil. Aşağıdakiler önerilen varsayılanlardır; açık kalan ayrıntılar [Açık kararlar](#açık-kararlar) bölümündedir. Bu öğelerin hiçbiri statik prototipte henüz yok.
+Oyun öğeleri kişiye eşlik etmek için var; baskı kurmak, cezalandırmak ya da utandırmak için değil. Aşağıdakiler ürün varsayılanlarıdır; açık kalan ayrıntılar [Açık kararlar](#açık-kararlar) bölümündedir.
 
 ### Bahçe sahnesi
 
@@ -85,9 +85,10 @@ Oyun öğeleri kişiye eşlik etmek için var; baskı kurmak, cezalandırmak ya 
 
 ### Odalar ve canlı sayaç
 
-- Herkese açık dört temalı oda (kapı): Ortak oda, Ders, Kod, Yazı. Her odanın kendi turu, sohbeti, ortak ağacı ve tur kayıtları vardır.
-- Giriş ekranında "Şu an N kişi çalışıyor" ve her kapının yanında o odadaki kişi sayısı (lobi kanalı, presence).
-- **Ev sahibi odası:** herkes kendi odasını açıp linkini paylaşabilir (`?oda=r-xxxxxxxx`); bu odalar herkese açık listede görünmez. Kişi başı en fazla 3 oda.
+- Herkes tek ana meydan olan **Ortak bahçeye** (`ortak`) girer. Bahçe içinde 4 fiziksel **portal kapı** bulunur: **Ders** (sıcak kütüphane), **Kod** (gece atölyesi), **İş** (çalışma salonu) ve **Hobi** (cam sera).
+- Katılımcılar liste yerine doğrudan oyun içinden bu kapılara yürüyerek ya da dokunarak ilgili evrene geçer; her evrenin kendi turu, sohbeti ve o an içerideki katılımcıları vardır. Alt kapıdan tekrar Ortak bahçeye dönülür.
+- Giriş ekranında bahçeden canlı bir önizleme ve "Şu an N kişi çalışıyor" canlı sayacı görünür; bahçedeki her portal kapının üstünde de o kapıdaki canlı kişi sayısı gösterilir (lobi kanalı, presence).
+- **Ev sahibi odası:** herkes kendi odasını açıp linkini paylaşabilir (`?oda=r-xxxxxxxx`); bu odalar herkese açık listede görünmez. Kişi başı en fazla 3 oda. Her odanın kendi turu, sohbeti, ortak ağacı ve tur kayıtları vardır.
 
 ### Saat ayarlı oda
 
@@ -106,10 +107,10 @@ Oyun öğeleri kişiye eşlik etmek için var; baskı kurmak, cezalandırmak ya 
 
 - **Çekirdek döngü:** odaklan → bahçe büyür → molada hasat et → Yaprak ve koleksiyon → yeni tohum → odaklan.
 - **Hasat:** molada olgun bitkiye dokununca (ya da üstündeyken E) hasat edilir; tarh boşalır, çeşide göre Yaprak kazanılır (papatya 3, lale 8, havuç 10, ayçiçeği 14, çilek 18, mevsim tohumları 12). İsteğe bağlıdır; hiçbir bitki kendiliğinden kaybolmaz.
-- **Herbaryum:** hasat edilen her çeşit bir kart olarak koleksiyona girer ve kaç kez yetiştirildiği yazar (9 çeşit). Tamamlama baskısı yoktur.
+- **Herbaryum:** hasat edilen her çeşit bir kart olarak koleksiyona girer ve kaç kez yetiştirildiği yazar (9 çeşit + hasatta şansa bağlı +5 Yaprak bonuslu nadir çeşit keşifleri). Bulunmayan nadir çeşitler eksik olarak gösterilmez; tamamlama baskısı yoktur.
 - **Haftalık mevsim:** her pazartesi (İstanbul) sırayla sonbahar, kış, ilkbahar, yaz. Sahnenin çim ve ağaç renkleri değişir, kışın kar yağar. Her mevsimin yalnızca o hafta alınabilen bir tohumu vardır: kabak, kardelen, gelincik, lavanta (25 Yaprak). Keseye alınan tohum sonra da ekilebilir.
 - **Açılan yerler ve haftanın dileği:** ortak ağaç odanın haftalık süresiyle büyüdükçe haritada yeni yerler açılır: meydan (60 dk), çeşme (200), sera (500), fener festivali (1000), çiçek tarlası (2000). "Haftanın dileği" sıradaki yeri ve kalan dakikayı gösterir. Her pazartesi yeniden başlar.
-- **Evin içi:** molada ve beklemede evin yeşil kapısından kişisel bir çalışma köşesine girilir (kitaplık, şömine, masa, yatak). İçerideyken diğerleri görünmez; odak başlayınca bahçeye dönülür.
+- **Evin içi ve kişisel kulübe dekorasyonu:** molada ve beklemede evin yeşil kapısından kişisel bir çalışma köşesine girilir (kitaplık, şömine, masa, yatak). Kullanıcı Yapraklarla kulübe eşyaları alabilir (bitki çayı tepsisi, sıcak fener, pencere kedisi, sarkan sarmaşık, pikap, okuma minderi); alınan eşyalar evin içinde canlı detaylarla görünür. İçerideyken diğerleri görünmez; odak başlayınca bahçeye dönülür.
 
 ### Tohum çeşitleri
 
@@ -148,16 +149,17 @@ Oyun öğeleri kişiye eşlik etmek için var; baskı kurmak, cezalandırmak ya 
 - **Aşama geçişleri:** ekranda kısa bir bildirim ve isteğe bağlı ses (varsayılan kapalı).
 - **Katılımcı listesi:** avatar, ad, niyet ve durum ("Beklemede", "Odakta", "Molada", "Turdan ayrıldı", "Henüz katılmadı"). Durumlar metin ve ikonla gösterilir.
 - **Profil / karakter düzenleyici:** ten, saç rengi, saç stili ve kıyafet; seçim her yerde hemen görünür.
-- **Giriş:** tek alan, "Takma adın". Arka planda Supabase anonim oturumu açılır; profil ve bahçe o tarayıcıda hatırlanır.
+- **Giriş:** tek alan, "Takma adın" ve yanında bahçeden canlı piksel görünüm (gün döngüsü, mevsim ve bahçe sakinleriyle). Arka planda Supabase anonim oturumu açılır; profil ve bahçe o tarayıcıda hatırlanır.
 - **Sohbet paneli:** sahnenin sağ üstünde, oyunlardaki gibi yarı saydam bir panel (telefonda sahnenin altında). Mesajların yanında odaya gelenler, ayrılanlar, tepkiler ve aşama değişimleri kısa satırlar olarak akar. Molada Enter ile yazılır, Esc ile sahneye dönülür; panel küçültülebilir ve küçükken yeni mesaj sayısını gösterir. Mesaj göndermek yalnızca molada açıktır.
 - **Gerçek zamanlı oda:** kimin odada olduğu (presence), molada karakter konumları ve tepkiler (broadcast), tur başlangıcı ve yeni mesajlar (veritabanı değişiklikleri).
+- **Niyet başlangıçları ve oturum defteri:** odak niyeti alanının altında tek tıkla doldurulan hazır başlangıç çipleri bulunur; sağ sütundaki "Oturum defterin" kartında ise yalnızca kullanıcının kendisine görünen tamamlanmış odak turları listelenir (`my_history`).
 - **İki dil:** üst bardaki TR / EN düğmesi. Tüm metinler `i18n.js` içinde.
 - **Görünüm:** masaüstü ve mobil genişliklere uyum, açık ve koyu tema.
 
 ### Henüz yapmadıkları
 
 - Kalıcı hesap yok. Tarayıcı verisi silinirse ya da cihaz değişirse profil taşınmaz.
-- Görev listesi, mağaza ve oturum/görev geçmişi yok.
+- Çok adımlı kişisel görev listesi henüz yok.
 - Otomatik test yok.
 
 - Kural hem arayüzde hem sunucuda uygulanmalı. Sunucu mesajı kendi saatine ve odanın o anki aşamasına göre kabul eder ya da reddeder. Reddedilen mesajın metni kullanıcının ekranından silinmez.
@@ -177,6 +179,29 @@ Oyun öğeleri kişiye eşlik etmek için var; baskı kurmak, cezalandırmak ya 
 
 - Kullanıcı kendi geçmiş oturumlarını (tarih, süre, niyet, özet) ve tamamladığı görevleri görür.
 - Geçmiş yalnızca kullanıcının kendisine görünür.
+
+### Sonraki yapılacaklar (Yol haritası)
+
+Bu liste bir sonraki geliştirme oturumunda kalınan yerden devam edebilmek için tutulur.
+
+#### Canlı test ve doğrulama (mola döngüsü + portal akışı)
+
+- [ ] **Mola fazında portal geçişleri:** `:25–:30` mola aralığında (veya `dev_mode = true` kısa turda) 4 portal kapısının (`ders`, `kod`, `work`, `hobby`) her birine yürüyerek/dokunarak `E` basmadan otomatik geçiş ve alt kapıdan `Ortak bahçe` dönüşü canlı test edilecek.
+- [ ] **Kulübe içi ve dekorasyon:** Yeşil ev kapısından içeri girip Yaprak ile satın alınan 6 eşyanın (`tea`, `lantern`, `cat`, `plant`, `turntable`, `cushion`) sahnede ve animasyonlarıyla (`prefers-reduced-motion` kapalıyken) doğru göründüğü doğrulanacak.
+- [ ] **Hasat ve nadir çeşit:** Mola fazında çiçeklenmiş bitki hasat edilip ~%22 şansla nadir çeşit (`10..18`, `+5` bonus Yaprak) ve Herbaryum `Nadir keşifler` kartı canlı test edilecek.
+- [ ] **Oturum defterin:** Tamamlanan bir odak turunun ardından `my_history` çıktısının sağ sütunda (`historySection`) güncellendiği doğrulanacak.
+
+#### Aşama 3 — Yapılacak özellikler
+
+- [ ] **Kişisel görev listesi (mikro adımlar):** Odak öncesi/molada büyük bir işi 2–3 küçük adıma bölmeyi sağlayan hafif görev listesi ve seçili adımı doğrudan tur niyetine (`#intentInput`) aktarma. (Proje, öncelik, son tarih ve paylaşım kapsam dışı.)
+- [ ] **Mobil sahne kontrolü:** Küçük/dokunmatik ekranlarda bahçede yürümeyi ve kapılara girmeyi kolaylaştıran hafif yön/dokunma geri bildirimleri.
+- [ ] **Çok kullanıcılı portal presence:** Giriş ekranındaki ve kapı üstlerindeki canlı kişi sayılarının farklı odalar arasında geçiş yaparken gecikmesiz güncellenmesinin uçtan uca sınanması.
+
+#### Altyapı, güvenlik ve kalite
+
+- [ ] **RLS sertleştirmesi:** `profiles` güncelleme politikasında istemcinin doğrudan `leaves`, `xp`, `streak`, `garden`, `cabin_items` sütunlarını değiştirmesini engelleyen trigger/policy eklenmesi (şu an iş kuralları `SECURITY DEFINER` RPC'lerde).
+- [ ] **Otomatik E2E test:** Giriş -> odak -> mola -> hasat -> portal geçişi -> kulübe satın alma akışları için Playwright veya benzeri tarayıcı test paketi.
+- [ ] **Kalıcı hesap kararı:** Pilot sonrası anonim oturuma e-posta / sihirli bağlantı eklenip eklenmeyeceği (bkz. [Açık kararlar](#açık-kararlar)).
 
 ## Sonraki sürümlere bırakılanlar
 
@@ -234,8 +259,8 @@ Kurulum, paket yükleme ya da derleme adımı yok. Supabase istemcisi (supabase-
 
 ### Sunucu tarafı
 
-- Tablolar: `profiles`, `rooms` (tek ortak oda), `participations`, `messages`. RLS açık; kullanıcı XP, Yaprak ve bahçeyi kendisi yazamaz.
-- Fonksiyonlar: `room_slot`, `room_phase`, `set_room_timing` (yalnızca test modunda), `create_room`, `week_leaderboard`, `week_companions`, `current_season`, `harvest`, `join_turn`, `leave_turn`, `claim_reward`, `buy_seed`, `plant_seed`, `room_week_minutes`.
+- Tablolar: `profiles` (ek olarak `cabin_items`), `rooms` (`ortak`, `ders`, `kod`, `work`, `hobby` + ev sahibi odaları), `participations`, `messages`. RLS açık; ödül ve satın alma kuralları `SECURITY DEFINER` fonksiyonlarda çalışır.
+- Fonksiyonlar: `room_slot`, `room_phase`, `set_room_timing` (yalnızca test modunda), `create_room`, `week_leaderboard`, `week_companions`, `current_season`, `harvest` (nadir çeşit + bonus Yaprak dahil), `buy_cabin_item`, `cabin_item_price`, `my_history`, `join_turn`, `leave_turn`, `claim_reward`, `buy_seed`, `plant_seed`, `room_week_minutes`.
 - Yayın: `.github/workflows/pages.yml` ön yüzü (`prototip/`) `main` dalına her push'ta GitHub Pages'e çıkarır.
 - Bahçe sakinleri: Fatih ve Melis sahnede her zaman bulunan iki karakterdir; gerçek kullanıcı değiller, katılımcı listesinde görünmezler.
 - Ücretsiz Supabase projeleri bir hafta hiç kullanılmazsa duraklatılır; panelden tek tıkla yeniden açılır, veri silinmez.
