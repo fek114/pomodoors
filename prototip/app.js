@@ -35,6 +35,7 @@ const state = {
   turnStart: 0,         // içinde bulunulan 30 dk'lık dilimin başlangıcı (sunucu saati, ms)
   autoJoin: true,       // molada: sıradaki tura otomatik katıl
   seedKind: 0,          // molada ekilecek tohum çeşidi
+  sideTab: 'people',    // 'people' | 'garden' | 'cabin' | 'board' | 'history'
   myPart: null,         // bu turdaki katılım satırı
   online: false,
 };
@@ -202,6 +203,11 @@ const els = {
   profilePreview: $('profilePreview'),
   seedsSection: $('seedsSection'),
   seedList: $('seedList'),
+  hotbarWrap: $('hotbarWrap'),
+  hotbar: $('hotbar'),
+  hotbarSelected: $('hotbarSelected'),
+  sideTabs: $('sideTabs'),
+  peopleTabBadge: $('peopleTabBadge'),
   treeText: $('treeText'),
   ambientSelect: $('ambientSelect'),
   tourDialog: $('tourDialog'),
@@ -539,9 +545,11 @@ function render() {
   renderGarden();
   renderBoard();
   renderSeeds();
+  renderHotbar();
   renderHerbarium();
   renderCabin();
   renderHistory();
+  renderSideTabs();
   renderEmotes();
   trackPresence();
 }
@@ -628,7 +636,7 @@ function renderGarden() {
 
 // Ortak bahçe: odadakilerin bu hafta birlikte topladığı süre. Kişi bazında sıralama yok.
 function renderBoard() {
-  els.boardSection.hidden = !game.show.board;
+  els.boardSection.hidden = !game.show.board || state.sideTab !== 'board';
   if (!game.show.board) return;
   els.communalText.textContent = game.roomWeekMinutes
     ? t('board.text', { n: game.roomWeekMinutes })
@@ -974,7 +982,7 @@ function seedIcon(kind) {
 }
 
 function renderCabin() {
-  els.cabinSection.hidden = !game.show.garden;
+  els.cabinSection.hidden = !game.show.garden || state.sideTab !== 'cabin';
   if (!game.show.garden) return;
   els.cabinList.replaceChildren(...CABIN_ITEMS.map(({ id, price, rows, colors }) => {
     const owned = game.cabin.includes(id);
@@ -1015,13 +1023,57 @@ function renderHistory() {
   }));
 }
 
+const seedKindsList = () => {
+  const seasonal = seasonSeed();
+  return [...SEED_KINDS, seasonal,
+    ...[5, 6, 7, 8].filter((kind) => kind !== seasonal && (game.seeds[kind] || 0) > 0)];
+};
+
+function renderHotbar() {
+  if (!els.hotbarWrap) return;
+  els.hotbarWrap.hidden = !game.show.garden;
+  if (!game.show.garden) return;
+  const kinds = seedKindsList();
+  els.hotbar.replaceChildren(...kinds.map((kind, i) => {
+    const owned = game.seeds[kind] || 0;
+    const active = state.seedKind === kind;
+    const btn = el('button', `hotbar-slot${kind > 0 && !owned ? ' is-empty' : ''}`);
+    btn.type = 'button';
+    btn.dataset.hotbarKind = kind;
+    btn.setAttribute('aria-pressed', String(active));
+    btn.title = `${t(`seed.${kind}`)} (${kind === 0 ? t('seeds.free') : t('seeds.owned', { n: owned })})`;
+    btn.innerHTML = `<span class="hotbar-key">${i + 1}</span>${seedIcon(kind)}<span class="hotbar-qty">${kind === 0 ? '∞' : owned}</span>`;
+    return btn;
+  }));
+  els.hotbarSelected.textContent = t('hotbar.selected', { name: t(`seed.${state.seedKind}`) });
+}
+
+function renderSideTabs() {
+  if (!els.sideTabs) return;
+  const tabButtons = els.sideTabs.querySelectorAll('[data-tab]');
+  const panes = document.querySelectorAll('[data-tab-pane]');
+  const hiddenTabs = new Set([
+    ...(!game.show.garden ? ['garden', 'cabin'] : []),
+    ...(!game.show.board ? ['board'] : []),
+  ]);
+  if (hiddenTabs.has(state.sideTab)) state.sideTab = 'people';
+  tabButtons.forEach((btn) => {
+    const name = btn.dataset.tab;
+    btn.hidden = hiddenTabs.has(name);
+    btn.setAttribute('aria-selected', String(name === state.sideTab));
+  });
+  panes.forEach((pane) => {
+    const name = pane.dataset.tabPane;
+    pane.hidden = name !== state.sideTab || hiddenTabs.has(name);
+  });
+}
+
 function renderSeeds() {
   els.seedsSection.hidden = !game.show.garden;
   if (!game.show.garden) return;
   const seasonal = seasonSeed();
   // Bu haftanın mevsim tohumu ve kesede kalmış eski mevsim tohumları da listelenir.
-  const kinds = [...SEED_KINDS, seasonal,
-    ...[5, 6, 7, 8].filter((kind) => kind !== seasonal && (game.seeds[kind] || 0) > 0)];
+  const kinds = seedKindsList();
   els.seedList.replaceChildren(...kinds.map((kind) => {
     const owned = game.seeds[kind] || 0;
     const row = el('li', 'seed-row');
@@ -1085,6 +1137,7 @@ function personRow(person) {
 
 function renderPeople() {
   els.peopleCount.textContent = t('people.count', { n: people.length });
+  if (els.peopleTabBadge) els.peopleTabBadge.textContent = String(people.length);
   els.peopleList.replaceChildren(...people.map(personRow));
 }
 
@@ -1390,7 +1443,38 @@ function onPlantSeed(index) {
 }
 
 els.seedList.addEventListener('change', (event) => {
-  if (event.target.name === 'seedKind') state.seedKind = Number(event.target.value);
+  if (event.target.name === 'seedKind') {
+    state.seedKind = Number(event.target.value);
+    renderHotbar();
+  }
+});
+
+els.hotbar?.addEventListener('click', (event) => {
+  const btn = event.target.closest('[data-hotbar-kind]');
+  if (!btn) return;
+  state.seedKind = Number(btn.dataset.hotbarKind);
+  renderSeeds();
+  renderHotbar();
+});
+
+els.sideTabs?.addEventListener('click', (event) => {
+  const btn = event.target.closest('[data-tab]');
+  if (!btn || btn.hidden) return;
+  state.sideTab = btn.dataset.tab;
+  renderSideTabs();
+});
+
+window.addEventListener('keydown', (event) => {
+  if (!state.online || state.view !== 'room' || !game.show.garden) return;
+  if (event.metaKey || event.ctrlKey || event.altKey) return;
+  if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '')) return;
+  const idx = Number(event.key) - 1;
+  const kinds = seedKindsList();
+  if (idx >= 0 && idx < kinds.length && event.key >= '1' && event.key <= '9') {
+    state.seedKind = kinds[idx];
+    renderSeeds();
+    renderHotbar();
+  }
 });
 
 els.seedList.addEventListener('click', async (event) => {

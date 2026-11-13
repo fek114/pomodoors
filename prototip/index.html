@@ -70,194 +70,231 @@
   </main>
 
   <main class="room" id="roomView" hidden>
-    <section class="scene-frame" aria-labelledby="phaseName">
-      <div class="hud">
-        <div class="hud-main">
-          <p class="eyebrow">
-            <span class="eyebrow-dot" aria-hidden="true"></span>
-            <span id="phaseName"></span>
-            <span class="eyebrow-detail" id="phaseDetail"></span>
-          </p>
-          <div class="timer" id="timer" role="timer"></div>
-        </div>
-        <p class="stage-meta" id="stageMeta"></p>
-      </div>
-      <div class="progress" id="progress" aria-hidden="true"><span id="progressFill"></span></div>
-      <div class="scene-wrap" id="sceneWrap">
-        <canvas class="scene" id="scene" width="320" height="192" tabindex="0" role="img" data-i18n-aria="scene.aria"></canvas>
-        <div class="scene-labels" id="sceneLabels" aria-hidden="true"></div>
-        <section class="scene-chat" id="chatPanel" aria-labelledby="chatTitle">
-          <div class="chat-head">
-            <h2 id="chatTitle" data-i18n="chat.title"></h2>
-            <span class="chat-state" id="chatState"></span>
-            <span class="chat-unread" id="chatUnread" hidden></span>
-            <button class="chat-toggle" id="chatToggle" type="button" aria-expanded="true" aria-controls="chatBody"></button>
+    <div class="room-main">
+      <section class="scene-frame" aria-labelledby="phaseName">
+        <div class="hud">
+          <div class="hud-main">
+            <p class="eyebrow">
+              <span class="eyebrow-dot" aria-hidden="true"></span>
+              <span id="phaseName"></span>
+              <span class="eyebrow-detail" id="phaseDetail"></span>
+            </p>
+            <div class="timer" id="timer" role="timer"></div>
           </div>
-          <div class="chat-body" id="chatBody">
-            <ol class="feed" id="messages" aria-live="polite"></ol>
-            <p class="chat-locked" id="chatLocked"></p>
-            <form class="composer" id="composer">
-              <label class="visually-hidden" for="msgInput" data-i18n="chat.msgLabel"></label>
-              <input class="text-input" id="msgInput" type="text" maxlength="280" autocomplete="off" disabled>
-              <button class="btn btn-primary btn-small" id="sendBtn" type="submit" data-i18n="chat.send" disabled></button>
-            </form>
+          <p class="stage-meta" id="stageMeta"></p>
+        </div>
+        <div class="progress" id="progress" aria-hidden="true"><span id="progressFill"></span></div>
+        <div class="scene-wrap" id="sceneWrap">
+          <canvas class="scene" id="scene" width="320" height="192" tabindex="0" role="img" data-i18n-aria="scene.aria"></canvas>
+          <div class="scene-labels" id="sceneLabels" aria-hidden="true"></div>
+          <section class="scene-chat" id="chatPanel" aria-labelledby="chatTitle">
+            <div class="chat-head">
+              <h2 id="chatTitle" data-i18n="chat.title"></h2>
+              <span class="chat-state" id="chatState"></span>
+              <span class="chat-unread" id="chatUnread" hidden></span>
+              <button class="chat-toggle" id="chatToggle" type="button" aria-expanded="true" aria-controls="chatBody"></button>
+            </div>
+            <div class="chat-body" id="chatBody">
+              <ol class="feed" id="messages" aria-live="polite"></ol>
+              <p class="chat-locked" id="chatLocked"></p>
+              <form class="composer" id="composer">
+                <label class="visually-hidden" for="msgInput" data-i18n="chat.msgLabel"></label>
+                <input class="text-input" id="msgInput" type="text" maxlength="280" autocomplete="off" disabled>
+                <button class="btn btn-primary btn-small" id="sendBtn" type="submit" data-i18n="chat.send" disabled></button>
+              </form>
+            </div>
+          </section>
+        </div>
+        <div class="scene-foot">
+          <div class="hotbar-row">
+            <div class="hotbar-wrap" id="hotbarWrap">
+              <div class="hotbar" id="hotbar" role="group" data-i18n-aria="hotbar.aria"></div>
+              <span class="hotbar-selected" id="hotbarSelected"></span>
+            </div>
+            <div class="scene-tools">
+              <div class="emotes" id="emotes" role="group" data-i18n-aria="emote.aria">
+                <button class="emote" type="button" data-emote="wave"><span class="emote-icon" aria-hidden="true"></span><span data-i18n="emote.wave"></span></button>
+                <button class="emote" type="button" data-emote="heart"><span class="emote-icon" aria-hidden="true"></span><span data-i18n="emote.heart"></span></button>
+                <button class="emote" type="button" data-emote="coffee"><span class="emote-icon" aria-hidden="true"></span><span data-i18n="emote.coffee"></span></button>
+              </div>
+              <label class="ambient"><span data-i18n="ambient.label"></span>
+                <select id="ambientSelect">
+                  <option value="off" data-i18n="ambient.off"></option>
+                  <option value="rain" data-i18n="ambient.rain"></option>
+                  <option value="birds" data-i18n="ambient.birds"></option>
+                  <option value="fire" data-i18n="ambient.fire"></option>
+                </select>
+              </label>
+            </div>
           </div>
-        </section>
-      </div>
-      <div class="scene-foot">
-        <div class="emotes" id="emotes" role="group" data-i18n-aria="emote.aria">
-          <button class="emote" type="button" data-emote="wave"><span class="emote-icon" aria-hidden="true"></span><span data-i18n="emote.wave"></span></button>
-          <button class="emote" type="button" data-emote="heart"><span class="emote-icon" aria-hidden="true"></span><span data-i18n="emote.heart"></span></button>
-          <button class="emote" type="button" data-emote="coffee"><span class="emote-icon" aria-hidden="true"></span><span data-i18n="emote.coffee"></span></button>
-        </div>
-        <label class="ambient"><span data-i18n="ambient.label"></span>
-          <select id="ambientSelect">
-            <option value="off" data-i18n="ambient.off"></option>
-            <option value="rain" data-i18n="ambient.rain"></option>
-            <option value="birds" data-i18n="ambient.birds"></option>
-            <option value="fire" data-i18n="ambient.fire"></option>
-          </select>
-        </label>
-        <p class="scene-hint" id="sceneHint" role="status" aria-live="polite"></p>
-        <p class="scene-caption" id="gardenCaption"></p>
-      </div>
-    </section>
-
-    <section class="stage" data-i18n-aria="stage.aria">
-
-      <div class="stage-block" data-block="focus" hidden>
-        <p class="label" data-i18n="focus.intentLabel"></p>
-        <p class="intent-text" id="myIntent"></p>
-        <p class="late-note" id="lateNote" data-i18n="focus.late" hidden></p>
-        <div class="stage-actions">
-          <button class="btn btn-quiet" id="leaveBtn" type="button" data-i18n="focus.leave"></button>
-          <p class="fine" data-i18n="focus.leaveNote"></p>
-        </div>
-      </div>
-
-      <div class="stage-block" data-block="left" hidden>
-        <!-- Durum illüstrasyonu: aralık kapı -->
-        <svg class="illus illus-left" viewBox="0 0 64 54" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M8 48h46"/>
-          <path d="M16 48V8h22v40"/>
-          <path d="M16 8l11 3v38l-11-1"/>
-          <circle cx="24" cy="30" r="1" fill="currentColor" stroke="none"/>
-          <path class="illus-accent" d="M43 28h11M50 24l4 4-4 4"/>
-        </svg>
-        <p class="label" data-i18n="left.label"></p>
-        <p class="intent-text" id="leftSummary"></p>
-        <p class="fine" data-i18n="left.note"></p>
-        <div class="stage-actions">
-          <button class="btn btn-quiet" id="rejoinBtn" type="button" data-i18n="left.rejoin"></button>
-        </div>
-      </div>
-
-      <div class="stage-block" data-block="break" hidden>
-        <article class="card" id="summaryCard">
-          <p class="label" data-i18n="summary.label"></p>
-          <p class="summary-line" id="summaryLine"></p>
-          <ul class="summary-reward" id="summaryReward"></ul>
-          <p class="summary-intent" id="summaryIntent"></p>
-        </article>
-        <div class="break-note">
-          <!-- Durum illüstrasyonu: buharı tüten fincan -->
-          <svg class="illus" viewBox="0 0 56 48" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 21h24v7.5A10.5 10.5 0 0 1 25.5 39h-3A10.5 10.5 0 0 1 12 28.5z"/>
-            <path d="M36 24h2.5a4.5 4.5 0 0 1 0 9H35"/>
-            <path d="M8 43h32"/>
-            <path class="illus-accent" d="M19 16c-1.8-2.2 1.8-3.8 0-6.5M25 16c-1.8-2.2 1.8-3.8 0-6.5M31 16c-1.8-2.2 1.8-3.8 0-6.5"/>
-          </svg>
-          <p class="fine" id="breakNote"></p>
-        </div>
-      </div>
-
-      <div class="stage-block" data-block="join break" hidden>
-        <form id="startForm">
-          <div class="field">
-            <label for="intentInput" id="intentLabel"></label>
-            <input class="text-input" id="intentInput" type="text" maxlength="80" autocomplete="off" data-i18n-placeholder="intent.placeholder">
-            <div class="intent-chips" id="intentPresets" role="group" data-i18n-aria="intent.presetsLabel"></div>
-            <p class="hint"><span data-i18n="intent.hint"></span><span id="intentCount">0/80</span></p>
+          <div class="scene-hints">
+            <p class="scene-hint" id="sceneHint" role="status" aria-live="polite"></p>
+            <p class="scene-caption" id="gardenCaption"></p>
           </div>
-          <label class="toggle" id="autoJoinRow"><input type="checkbox" id="autoJoin" checked><span id="autoJoinText"></span></label>
-          <div class="form-actions">
-            <button class="btn btn-primary" id="startBtn" type="submit"></button>
-            <p class="fine" id="startNote"></p>
+        </div>
+      </section>
+
+      <section class="stage stage-dock card" data-i18n-aria="stage.aria">
+
+        <div class="stage-block" data-block="focus" hidden>
+          <div class="focus-dock">
+            <div class="focus-dock-text">
+              <p class="label" data-i18n="focus.intentLabel"></p>
+              <p class="intent-text" id="myIntent"></p>
+              <p class="late-note" id="lateNote" data-i18n="focus.late" hidden></p>
+            </div>
+            <div class="stage-actions">
+              <button class="btn btn-quiet btn-small" id="leaveBtn" type="button" data-i18n="focus.leave"></button>
+              <p class="fine" data-i18n="focus.leaveNote"></p>
+            </div>
           </div>
-        </form>
-      </div>
-    </section>
+        </div>
+
+        <div class="stage-block" data-block="left" hidden>
+          <div class="focus-dock">
+            <div class="focus-dock-text">
+              <p class="label" data-i18n="left.label"></p>
+              <p class="intent-text" id="leftSummary"></p>
+              <p class="fine" data-i18n="left.note"></p>
+            </div>
+            <div class="stage-actions">
+              <button class="btn btn-quiet btn-small" id="rejoinBtn" type="button" data-i18n="left.rejoin"></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="stage-block" data-block="break" hidden>
+          <article class="summary-ribbon" id="summaryCard">
+            <p class="label" data-i18n="summary.label"></p>
+            <p class="summary-line" id="summaryLine"></p>
+            <ul class="summary-reward" id="summaryReward"></ul>
+            <p class="summary-intent" id="summaryIntent"></p>
+          </article>
+          <div class="break-note">
+            <svg class="illus" viewBox="0 0 56 48" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 21h24v7.5A10.5 10.5 0 0 1 25.5 39h-3A10.5 10.5 0 0 1 12 28.5z"/>
+              <path d="M36 24h2.5a4.5 4.5 0 0 1 0 9H35"/>
+              <path d="M8 43h32"/>
+              <path class="illus-accent" d="M19 16c-1.8-2.2 1.8-3.8 0-6.5M25 16c-1.8-2.2 1.8-3.8 0-6.5M31 16c-1.8-2.2 1.8-3.8 0-6.5"/>
+            </svg>
+            <p class="fine" id="breakNote"></p>
+          </div>
+        </div>
+
+        <div class="stage-block" data-block="join break" hidden>
+          <form id="startForm">
+            <div class="field">
+              <div class="field-head">
+                <label for="intentInput" id="intentLabel"></label>
+                <span class="hint-count" id="intentCount">0/80</span>
+              </div>
+              <div class="intent-row">
+                <input class="text-input" id="intentInput" type="text" maxlength="80" autocomplete="off" data-i18n-placeholder="intent.placeholder">
+                <button class="btn btn-primary" id="startBtn" type="submit"></button>
+              </div>
+              <div class="intent-meta-row">
+                <div class="intent-chips" id="intentPresets" role="group" data-i18n-aria="intent.presetsLabel"></div>
+                <p class="fine" id="startNote"></p>
+              </div>
+            </div>
+            <label class="toggle" id="autoJoinRow"><input type="checkbox" id="autoJoin" checked><span id="autoJoinText"></span></label>
+          </form>
+        </div>
+      </section>
+    </div>
 
     <aside class="side" data-i18n-aria="side.aria">
-      <section aria-labelledby="peopleTitle">
-        <div class="section-head">
-          <h2 id="peopleTitle" data-i18n="people.title"></h2>
-          <span class="count" id="peopleCount"></span>
-        </div>
-        <ul class="people-list" id="peopleList"></ul>
-      </section>
+      <div class="side-tabs" id="sideTabs" role="tablist" data-i18n-aria="tab.aria">
+        <button class="side-tab" type="button" role="tab" data-tab="people" aria-selected="true">
+          <span class="side-tab-label" data-i18n="tab.people"></span>
+          <span class="side-tab-badge" id="peopleTabBadge"></span>
+        </button>
+        <button class="side-tab" type="button" role="tab" data-tab="garden" aria-selected="false">
+          <span class="side-tab-label" data-i18n="tab.garden"></span>
+        </button>
+        <button class="side-tab" type="button" role="tab" data-tab="cabin" aria-selected="false">
+          <span class="side-tab-label" data-i18n="tab.cabin"></span>
+        </button>
+        <button class="side-tab" type="button" role="tab" data-tab="board" aria-selected="false">
+          <span class="side-tab-label" data-i18n="tab.board"></span>
+        </button>
+        <button class="side-tab" type="button" role="tab" data-tab="history" aria-selected="false">
+          <span class="side-tab-label" data-i18n="tab.history"></span>
+        </button>
+      </div>
 
-      <section class="board card" id="boardSection" aria-labelledby="boardTitle">
-        <div class="section-head">
-          <h2 id="boardTitle" data-i18n="board.title"></h2>
-          <span class="count" data-i18n="board.reset"></span>
-        </div>
-        <p class="season-line" id="seasonLine"></p>
-        <div class="wish">
-          <p class="wish-text" id="wishText"></p>
-          <div class="wish-bar" aria-hidden="true"><span id="wishFill"></span></div>
-        </div>
-        <p class="communal" id="communalText"></p>
-        <p class="tree-text" id="treeText"></p>
-        <h3 class="board-sub" data-i18n="leader.title"></h3>
-        <ol class="leader-list" id="leaderList"></ol>
-        <h3 class="board-sub" data-i18n="companions.title"></h3>
-        <ul class="companion-list" id="companionList"></ul>
-        <p class="fine" data-i18n="board.fine"></p>
-      </section>
+      <div class="side-panes">
+        <section class="side-pane" data-tab-pane="people" aria-labelledby="peopleTitle">
+          <div class="section-head">
+            <h2 id="peopleTitle" data-i18n="people.title"></h2>
+            <span class="count" id="peopleCount"></span>
+          </div>
+          <ul class="people-list" id="peopleList"></ul>
+        </section>
 
-      <section class="seeds card" id="seedsSection" aria-labelledby="seedsTitle">
-        <div class="section-head">
-          <h2 id="seedsTitle" data-i18n="seeds.title"></h2>
-        </div>
-        <fieldset class="seed-fieldset">
-          <legend class="visually-hidden" data-i18n="seeds.select"></legend>
-          <ul class="seed-list" id="seedList"></ul>
-        </fieldset>
-        <p class="fine" data-i18n="seeds.fine"></p>
-      </section>
+        <div class="side-pane side-pane-stack" data-tab-pane="garden" hidden>
+          <section class="seeds" id="seedsSection" aria-labelledby="seedsTitle">
+            <div class="section-head">
+              <h2 id="seedsTitle" data-i18n="seeds.title"></h2>
+            </div>
+            <fieldset class="seed-fieldset">
+              <legend class="visually-hidden" data-i18n="seeds.select"></legend>
+              <ul class="seed-list" id="seedList"></ul>
+            </fieldset>
+            <p class="fine" data-i18n="seeds.fine"></p>
+          </section>
 
-      <section class="herbarium card" id="herbSection" aria-labelledby="herbTitle">
-        <div class="section-head">
-          <h2 id="herbTitle" data-i18n="herb.title"></h2>
-          <span class="count" id="herbCount"></span>
+          <section class="herbarium" id="herbSection" aria-labelledby="herbTitle">
+            <div class="section-head">
+              <h2 id="herbTitle" data-i18n="herb.title"></h2>
+              <span class="count" id="herbCount"></span>
+            </div>
+            <ul class="herb-grid" id="herbList"></ul>
+            <div class="herb-rare-wrap" id="rareHerbWrap" hidden>
+              <h3 class="herb-rare-title" data-i18n="herb.rareTitle"></h3>
+              <ul class="herb-grid" id="rareHerbList"></ul>
+            </div>
+            <p class="fine" data-i18n="herb.fine"></p>
+          </section>
         </div>
-        <ul class="herb-grid" id="herbList"></ul>
-        <div class="herb-rare-wrap" id="rareHerbWrap" hidden>
-          <h3 class="herb-rare-title" data-i18n="herb.rareTitle"></h3>
-          <ul class="herb-grid" id="rareHerbList"></ul>
-        </div>
-        <p class="fine" data-i18n="herb.fine"></p>
-      </section>
 
-      <section class="cabin card" id="cabinSection" aria-labelledby="cabinTitle">
-        <div class="section-head">
-          <h2 id="cabinTitle" data-i18n="cabin.title"></h2>
-        </div>
-        <ul class="cabin-list" id="cabinList"></ul>
-        <p class="fine" data-i18n="cabin.fine"></p>
-      </section>
+        <section class="side-pane cabin" id="cabinSection" data-tab-pane="cabin" aria-labelledby="cabinTitle" hidden>
+          <div class="section-head">
+            <h2 id="cabinTitle" data-i18n="cabin.title"></h2>
+          </div>
+          <ul class="cabin-list" id="cabinList"></ul>
+          <p class="fine" data-i18n="cabin.fine"></p>
+        </section>
 
-      <section class="history card" id="historySection" aria-labelledby="historyTitle">
-        <div class="section-head">
-          <h2 id="historyTitle" data-i18n="history.title"></h2>
-          <span class="count" id="historyCount"></span>
-        </div>
-        <p class="history-empty" id="historyEmpty" data-i18n="history.empty"></p>
-        <ul class="history-list" id="historyList"></ul>
-        <p class="fine" data-i18n="history.fine"></p>
-      </section>
+        <section class="side-pane board" id="boardSection" data-tab-pane="board" aria-labelledby="boardTitle" hidden>
+          <div class="section-head">
+            <h2 id="boardTitle" data-i18n="board.title"></h2>
+            <span class="count" data-i18n="board.reset"></span>
+          </div>
+          <p class="season-line" id="seasonLine"></p>
+          <div class="wish">
+            <p class="wish-text" id="wishText"></p>
+            <div class="wish-bar" aria-hidden="true"><span id="wishFill"></span></div>
+          </div>
+          <p class="communal" id="communalText"></p>
+          <p class="tree-text" id="treeText"></p>
+          <h3 class="board-sub" data-i18n="leader.title"></h3>
+          <ol class="leader-list" id="leaderList"></ol>
+          <h3 class="board-sub" data-i18n="companions.title"></h3>
+          <ul class="companion-list" id="companionList"></ul>
+          <p class="fine" data-i18n="board.fine"></p>
+        </section>
 
+        <section class="side-pane history" id="historySection" data-tab-pane="history" aria-labelledby="historyTitle" hidden>
+          <div class="section-head">
+            <h2 id="historyTitle" data-i18n="history.title"></h2>
+            <span class="count" id="historyCount"></span>
+          </div>
+          <p class="history-empty" id="historyEmpty" data-i18n="history.empty"></p>
+          <ul class="history-list" id="historyList"></ul>
+          <p class="fine" data-i18n="history.fine"></p>
+        </section>
+      </div>
     </aside>
   </main>
 

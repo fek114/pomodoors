@@ -1568,8 +1568,12 @@ const scene = (() => {
   }
 
   function fit() {
-    const avail = wrap.clientWidth;
-    scale = avail >= W * 2 ? Math.floor(avail / W) : avail / W;
+    if (!wrap || !canvas) return;
+    const availW = wrap.clientWidth;
+    const desktop = window.innerWidth >= 960;
+    const maxH = desktop ? Math.max(240, window.innerHeight - 360) : Math.max(200, window.innerHeight * 0.55);
+    const raw = Math.min(availW / W, maxH / H);
+    scale = raw >= 2 ? Math.floor(raw) : raw;
     canvas.style.width = `${W * scale}px`;
     canvas.style.height = `${H * scale}px`;
     labels.style.left = `${canvas.offsetLeft}px`;
@@ -1685,6 +1689,7 @@ const scene = (() => {
       });
 
       new ResizeObserver(fit).observe(wrap);
+      window.addEventListener('resize', fit);
     }
     fit();
     if (!loopStarted) {
