@@ -77,18 +77,20 @@ const net = (() => {
   // Oda kanalı: kimlerin odada olduğu (presence), molada karakter konumları (broadcast),
   // oda süreleri ve yeni mesajlar (veritabanı değişiklikleri). Tur, duvar saatine hizalı döngüden hesaplanır.
   api.connect = (handlers) => {
-    channel = db.channel(`room:${api.room}`, {
+    const ch = db.channel(`room:${api.room}`, {
       config: { presence: { key: api.userId }, broadcast: { self: false } },
     });
-    channel
-      .on('presence', { event: 'sync' }, () => handlers.presence(channel.presenceState()))
-      .on('broadcast', { event: 'move' }, ({ payload }) => handlers.move(payload))
-      .on('broadcast', { event: 'emote' }, ({ payload }) => handlers.emote(payload))
+    channel = ch;
+    ch
+      .on('presence', { event: 'sync' }, () => { if (channel === ch) handlers.presence(ch.presenceState()); })
+      .on('broadcast', { event: 'move' }, ({ payload }) => { if (channel === ch) handlers.move(payload); })
+      .on('broadcast', { event: 'emote' }, ({ payload }) => { if (channel === ch) handlers.emote(payload); })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${api.room}` },
-        ({ new: row }) => handlers.room(row))
+        ({ new: row }) => { if (channel === ch) handlers.room(row); })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${api.room}` },
-        ({ new: row }) => handlers.message(row))
+        ({ new: row }) => { if (channel === ch) handlers.message(row); })
       .subscribe((status) => {
+        if (channel !== ch) return;
         subscribed = status === 'SUBSCRIBED';
         if (subscribed) {
           lastPresence = '';
@@ -123,20 +125,20 @@ const net = (() => {
 
   api.track = (payload) => {
     const text = JSON.stringify(payload);
-    if (!subscribed || text === lastPresence) return;
+    if (!channel || !subscribed || text === lastPresence) return;
     lastPresence = text;
     channel.track(payload);
   };
 
   api.sendMove = (position, force = false) => {
     const now = performance.now();
-    if (!subscribed || (!force && now - lastMoveAt < MOVE_INTERVAL_MS)) return;
+    if (!channel || !subscribed || (!force && now - lastMoveAt < MOVE_INTERVAL_MS)) return;
     lastMoveAt = now;
     channel.send({ type: 'broadcast', event: 'move', payload: { id: api.userId, ...position } });
   };
 
   api.sendEmote = (kind) => {
-    if (subscribed) channel.send({ type: 'broadcast', event: 'emote', payload: { id: api.userId, kind } });
+    if (channel && subscribed) channel.send({ type: 'broadcast', event: 'emote', payload: { id: api.userId, kind } });
   };
 
   function tabKey() {
@@ -155,19 +157,22 @@ const net = (() => {
   // Lobi: herkes hangi odada olduğunu burada da paylaşır; giriş ekranı oturum açmadan sayıları okur.
   api.watchLobby = (onCounts) => {
     if (lobby) db.removeChannel(lobby).catch(() => {});
-    lobby = db.channel('lobby', { config: { presence: { key: tabKey() } } });
-    lobby
+    const lb = db.channel('lobby', { config: { presence: { key: tabKey() } } });
+    lobby = lb;
+    lb
       .on('presence', { event: 'sync' }, () => {
+        if (lobby !== lb) return;
         const counts = {};
-        Object.values(lobby.presenceState()).forEach((entries) => {
+        Object.values(lb.presenceState()).forEach((entries) => {
           const entry = entries[0];
           if (entry && entry.room) counts[entry.room] = (counts[entry.room] || 0) + 1;
         });
         onCounts(counts);
       })
       .subscribe((status) => {
+        if (lobby !== lb) return;
         lobbySubscribed = status === 'SUBSCRIBED';
-        if (lobbySubscribed && lobbyWanted) lobby.track({ room: api.room });
+        if (lobbySubscribed && lobbyWanted) lb.track({ room: api.room });
       });
   };
 
