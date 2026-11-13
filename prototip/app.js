@@ -1747,15 +1747,30 @@ els.joinForm.addEventListener('submit', async (event) => {
 
 /* Başlangıç */
 
+function connectLobby() {
+  net.watchLobby((counts) => {
+    lobbyCounts = counts;
+    renderDoors();
+  });
+}
+
+window.addEventListener('pagehide', () => net.leaveImmediately());
+window.addEventListener('beforeunload', () => net.leaveImmediately());
+window.addEventListener('pageshow', (event) => {
+  if (!event.persisted) return;
+  connectLobby();
+  if (state.online) {
+    net.trackLobby();
+    net.connect({ presence: onPresence, move: onMove, emote: onEmote, room: onRoom, message: onMessage, ready: trackPresence });
+  }
+});
+
 async function boot() {
   applyStaticText();
   els.soundState.textContent = t('sound.off');
   restoreAmbient();
   chooseInitialRoom();
-  net.watchLobby((counts) => {
-    lobbyCounts = counts;
-    renderDoors();
-  });
+  connectLobby();
   renderDoors();
   renderIntentPresets();
   render();

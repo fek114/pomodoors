@@ -103,8 +103,22 @@ const net = (() => {
     if (channel) {
       const old = channel;
       channel = null;
+      await old.untrack().catch(() => {});
       await db.removeChannel(old);
     }
+  };
+
+  api.leaveImmediately = () => {
+    subscribed = false;
+    lobbySubscribed = false;
+    lastPresence = '';
+    const ch = channel;
+    const lb = lobby;
+    channel = null;
+    lobby = null;
+    try { if (ch) ch.untrack(); } catch {}
+    try { if (lb) lb.untrack(); } catch {}
+    try { db.realtime?.disconnect?.(); } catch {}
   };
 
   api.track = (payload) => {
@@ -125,9 +139,23 @@ const net = (() => {
     if (subscribed) channel.send({ type: 'broadcast', event: 'emote', payload: { id: api.userId, kind } });
   };
 
+  function tabKey() {
+    try {
+      let key = sessionStorage.getItem('pomodoors.tab');
+      if (!key) {
+        key = `t-${Math.random().toString(36).slice(2)}`;
+        sessionStorage.setItem('pomodoors.tab', key);
+      }
+      return key;
+    } catch {
+      return `v-${Math.random().toString(36).slice(2)}`;
+    }
+  }
+
   // Lobi: herkes hangi odada olduğunu burada da paylaşır; giriş ekranı oturum açmadan sayıları okur.
   api.watchLobby = (onCounts) => {
-    lobby = db.channel('lobby', { config: { presence: { key: `v-${Math.random().toString(36).slice(2)}` } } });
+    if (lobby) db.removeChannel(lobby).catch(() => {});
+    lobby = db.channel('lobby', { config: { presence: { key: tabKey() } } });
     lobby
       .on('presence', { event: 'sync' }, () => {
         const counts = {};
